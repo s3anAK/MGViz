@@ -2539,6 +2539,7 @@ function getCoseismicSites(id) {
       });
       if (sites.length > 0) {
         $('#siteSelect').empty();
+        L_.resetLayerFills();
         ToolController_.activeTool.site = '';
         ToolController_.activeTool.sites = [];
         ToolController_.activeTool.siteOptionsList = [];
