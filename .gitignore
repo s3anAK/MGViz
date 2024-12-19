@@ -9,7 +9,7 @@
 /private/api/spice/kernels/*
 
 #Nested repo where private backend might reside
-/API/MMGIS-Private-Backend
+#/API/MMGIS-Private-Backend
 #Nested repo where private tools might reside
 #/src/essence/MMGIS-Private-Tools
 /src/essence/MMGIS-Private-Tools-OFF

@@ -197,6 +197,9 @@ var ChartTool = {
       '</select></div>',
       '<div id="SseDiv"><input type="checkbox" name="checkSse" value="true" checked="checked"><span style="font-size:13px;"> Detected Events</span></div>',
       '<div id="sitesDiv" style="margin-top:4px;">',
+      '<br>Coseismic Events:<br>',
+      '<select id="selectCoseismic" style="color:black;">',
+      '</select><br>',
       '<br>Site Code:<br>',
       '<input id="textSite" type="text" name="sitecode" style="color:#000000;width:60px;"/>',
       '<button id="buttonAdd" style="color:#000000;padding:2px;float:right;width:60px;font-size:11px;">Add</button><br>',
@@ -367,6 +370,9 @@ var ChartTool = {
       }
     });
 
+    // load list of coseismics
+    getCoseismics()
+
     // reselect any previous selections
     if (this.previousSites.length > 0) {
       $.each(this.previousSites, function (key, value) {
@@ -452,6 +458,9 @@ var ChartTool = {
       ChartTool.version = this.value;
       let siteOptions = new SiteOptions($('#siteSelect').val(), ChartTool.source, ChartTool.fil, ChartTool.type, ChartTool.mode, ChartTool.param, ChartTool.date);
       ToolController_.activeTool.loadChart(siteOptions, [ChartTool.north, ChartTool.east, ChartTool.up], ChartTool.coseismics, ChartTool.offset, ChartTool.stackOn, ChartTool.version);
+    });
+    $('#selectCoseismic').on('change', function (e) {
+      getCoseismicSites(this.value);
     });
     $('#selectParameter').on('change', function (e) {
       ChartTool.param = this.value;
@@ -2493,6 +2502,56 @@ function getTaclsModels(mode) {
     $('#modelDiv').hide();
     $('#SseDiv').hide();
   }
+}
+
+function getCoseismics() {
+  $.ajax({
+    type: 'GET',
+    url: 'api/mgviz/coseismic/',
+    dataType: 'json',
+    success: function (data) {
+      $('#selectCoseismic').empty()
+      $.each(data['coseismics'], function (key, value) {
+        if ('id' in value && 'time_utc' in value) { 
+          var formattedTime = value.time_utc.replace('T', ' ').slice(0, -5) + 'Z';
+          $('#selectCoseismic').append($('<option></option>')
+            .attr('value', value.id)
+            .text(formattedTime));
+        }
+      });
+      $('#selectCoseismic').val('')
+    },
+    error: function (jqXHR, textStatus, errorThrown) {
+      console.error('Unable to retrieve list of coseismics.');
+    }
+  });
+}
+
+function getCoseismicSites(id) {
+  $.ajax({
+    type: 'GET',
+    url: 'api/mgviz/coseismic?id=' + id,
+    dataType: 'json',
+    success: function (data) {
+      var sites = []
+      $.each(data['sites'], function (key, value) {
+        sites.push(value.site_id)
+      });
+      if (sites.length > 0) {
+        $('#siteSelect').empty();
+        ToolController_.activeTool.site = '';
+        ToolController_.activeTool.sites = [];
+        ToolController_.activeTool.siteOptionsList = [];
+        ToolController_.activeTool.stackOn = false;
+        ToolController_.getTool('SearchTool').search(sites, 'Sites');
+      } else {
+        alert('No sites were found with the coseismic event.');
+      }
+    },
+    error: function (jqXHR, textStatus, errorThrown) {
+      console.error('Unable to retrieve list of coseismics sites.');
+    }
+  });
 }
 
 function doy(dateObject) {
