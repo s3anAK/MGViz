@@ -24,6 +24,8 @@ def ingest_coseismics(df, conn, limit):
         location = row['Location/Local Name']
         magnitude = row['Magnitude']
         date_time = str(date) + ' ' + str(time)
+        latitude = float(str(row['Latitude']).replace('°', ''))
+        longitude = float(str(row['Longitude']).replace('°', ''))
 
         # Print record
         print(f"Record {idx}: Date = {date}, Time = {time}, \
@@ -41,13 +43,14 @@ def ingest_coseismics(df, conn, limit):
             break
         total = idx
         sql = '''
-        INSERT INTO coseismic (time_utc, location, magnitude)
-        VALUES (%s, %s, %s)
+        INSERT INTO coseismic (time_utc, location, magnitude, geom)
+        VALUES (%s, %s, %s, ST_GeomFromText('POINT(%s %s)', 4326))
         ON CONFLICT (time_utc) DO UPDATE
         SET location = excluded.location,
-            magnitude = excluded.magnitude;
+            magnitude = excluded.magnitude,
+            geom = excluded.geom;
         '''
-        cur.execute(sql, (date_time, location, magnitude))
+        cur.execute(sql, (date_time, location, magnitude, longitude, latitude))
         conn.commit()
     print('Inserted %i coseismic records' % (total - skipped + 1))
 

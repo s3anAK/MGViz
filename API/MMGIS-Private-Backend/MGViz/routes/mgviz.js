@@ -8,6 +8,10 @@ router.get("/coseismic", function (req, res, next) {
   coseismic(req, res, next, "get");
 });
 
+router.get("/earthquakes", function (req, res, next) {
+  earthquakes(req, res, next, "get");
+});
+
 
 function coseismic(req, res, next, type) {
   //Have it accept either post or get
@@ -82,5 +86,53 @@ function coseismic(req, res, next, type) {
       });
   }
 }
+
+function earthquakes(req, res, next, type) {
+  //Have it accept either post or get
+  let params = null;
+  if (type === "get") params = req.query;
+  else if (type === "post") params = req.body;
+  else {
+    res.send({
+      status: "failure",
+      message: "Unexpected HTTP method: " + type,
+      body: {},
+    });
+    return;
+  }
+
+  sequelize
+    .query(
+      "SELECT json_build_object(" +
+      "'type', 'FeatureCollection'," +
+      "'features', json_agg(" +
+          "json_build_object(" +
+              "'type', 'Feature'," +
+              "'geometry', ST_AsGeoJSON(geom)::json," +
+              "'properties', jsonb_strip_nulls(to_jsonb(coseismic) - 'geometry')" +
+          ")" +
+        ")" +
+      ")" +
+      "FROM coseismic"
+    )
+    .then(([earthquakes]) => {
+      res.send(earthquakes[0]['json_build_object'])
+    })
+    .catch((err) => {
+      logger(
+        "error",
+        "SQL error while acquiring earthquakes.",
+        req.originalUrl,
+        req,
+        err
+      );
+      res.send({
+        status: "failure",
+        message: "SQL error while acquiring earthquakes.",
+        body: {},
+      });
+    });
+}
+
 
 module.exports = router;
