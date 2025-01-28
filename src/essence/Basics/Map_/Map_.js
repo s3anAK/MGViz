@@ -1142,6 +1142,26 @@ async function makeLayer(layerObj, evenIfOff, forceGeoJSON) {
                         }
                 }
             break;
+            case 'Coseismics':
+                layerObj.style.vtLayer = {
+                    "sliced": 
+                        function(properties, zoom) {
+                            var radius = 1 * parseFloat(properties.magnitude);
+                            if (parseFloat(properties.magnitude) > 6) {
+                              radius = radius + (Math.pow(parseFloat(properties.magnitude),3)/200)
+                            }
+                            return {
+                              "color": "#000000",
+                              "fill": true,
+                              "fillColor": "#80ff00",
+                              "fillOpacity": 0.8,
+                              "opacity": 1,
+                              "radius": radius + 3,
+                              "weight": 1
+                            }
+                        }
+                }
+            break;
             case 'Velocities':
                 layerObj.style.vtLayer = {
                     "sliced": 
@@ -1231,9 +1251,17 @@ async function makeLayer(layerObj, evenIfOff, forceGeoJSON) {
             })(layerObj.style.vtId),
         }
         if ('sliced' in layerObj.style.vtLayer) {
-            L_.layers.layer[layerObj.name] = L.vectorGrid.slicer(geoJSON, vectorTileOptions);
+            L_.layers.layer[layerObj.name] = L.vectorGrid.slicer(geoJSON, vectorTileOptions)
+            .on('click', function (e) {
+                if (e.layer.properties['location'] != null) {
+                    if (ToolController_.activeToolName != 'ChartTool') {
+                        ToolController_.makeTool( 'ChartTool' )
+                    }
+                    ToolController_.getTool( 'ChartTool' ).getCoseismicSites(e.layer.properties.id)
+                }
+            })
             // Set all vector tile points on top with same z index so that they're all selectable
-            L_.layers.layer[layerObj.name].setZIndex(999999);
+            L_.layers.layer[layerObj.name].setZIndex(999999)
         } else {
             L_.layers.layer[layerObj.name] = L.vectorGrid
                 .protobuf(layerUrl, vectorTileOptions)
@@ -1305,6 +1333,19 @@ async function makeLayer(layerObj, evenIfOff, forceGeoJSON) {
                             e.layer.properties['title'] + '<br>' +
                             'Depth: ' + e.layer.properties['depth'] + ' km' + '<br>' +
                             new Date(e.layer.properties.time).toUTCString() + '<br>' +
+                            $('#mouseLngLat').text(),
+                            null,
+                            false,
+                            null,
+                            null,
+                            null,
+                            true
+                        )
+                    }
+                    else if (e.layer.properties['location'] != null) {
+                        CursorInfo.update(
+                            'M ' + parseFloat(e.layer.properties['magnitude']).toFixed(1) + ' - ' + e.layer.properties['location'] + '<br>' +
+                            new Date(e.layer.properties.time_utc).toUTCString() + '<br>' +
                             $('#mouseLngLat').text(),
                             null,
                             false,

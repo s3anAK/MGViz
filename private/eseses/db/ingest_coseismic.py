@@ -23,17 +23,26 @@ def ingest_coseismics(df, conn, limit):
         time = row['Time (UTC)']
         location = row['Location/Local Name']
         magnitude = row['Magnitude']
-        date_time = str(date) + ' ' + str(time)
+        date_time = str(date) + ' ' + str(time) + '+00:00'
         latitude = float(str(row['Latitude']).replace('°', ''))
+        latdir = row[row.index.get_loc('Latitude')+1]
         longitude = float(str(row['Longitude']).replace('°', ''))
+        londir = row[row.index.get_loc('Longitude')+1]
 
         # Print record
         print(f"Record {idx}: Date = {date}, Time = {time}, \
-               Magnitude = {magnitude}, Location {location}")
+              Lat = {latitude} {latdir}, Lon = {longitude} {londir}, \
+              Magnitude = {magnitude}, Location = {location}")
+
+        # Correct lat and lon values
+        if latdir == 'S':
+            latitude = latitude * -1
+        if londir == 'W':
+            longitude = longitude * -1
 
         # Ignore invalid values
         try:
-            datetime.strptime(date_time, '%Y-%m-%d %H:%M:%S')
+            datetime.strptime(date_time, '%Y-%m-%d %H:%M:%S+00:00')
         except ValueError:
             print('Invalid datetime...skipping')
             skipped += 1

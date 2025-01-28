@@ -2448,6 +2448,10 @@ var ChartTool = {
     }
     ChartTool.clickedLatLngs = []
     ChartTool.drawing.disable()
+  },
+  getCoseismicSites: function (id) {
+    $('#selectCoseismic').val(id)
+    getCoseismicSites(id)
   }
 };
 
