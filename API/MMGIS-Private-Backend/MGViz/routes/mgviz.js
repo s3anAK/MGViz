@@ -31,12 +31,16 @@ function coseismic(req, res, next, type) {
     //Get list of sites associated with coseismic id
     sequelize
     .query(
-      "SELECT site_id, neu" +
+      "SELECT site_id, x, y, neu, time_utc" +
         " " +
-        "FROM site_coseismic" +
+        "FROM site_coseismic, coseismic, site" +
         " " +
-        "WHERE coseismic_id = " + params.id + 
+        "WHERE site_coseismic.coseismic_id = " + params.id + 
         " " +
+        "AND coseismic.id = " + params.id +
+        " " + 
+        "AND site.id = site_id" +
+        " " + 
         "ORDER BY site_id ASC"
     )
     .then(([sites]) => {

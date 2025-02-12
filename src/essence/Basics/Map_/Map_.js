@@ -418,7 +418,7 @@ let Map_ = {
             }
         }
         // use old method for Velocities
-        if (layerObj.display_name == 'Velocities') {
+        if (layerObj.display_name == 'Velocities' || layerObj.display_name == 'Vectors') {
             this.map.eachLayer( function (layer) {
                 if (layer.vtId == 'id') {
                     // Make sure vector tiles don't get lost in the back
@@ -1228,6 +1228,40 @@ async function makeLayer(layerObj, evenIfOff, forceGeoJSON) {
                         }
                 }
             break;
+            case 'Vectors':
+                layerObj.style.vtLayer = {
+                    "sliced": 
+                        function(properties, zoom) {
+                            var n = parseFloat(properties.n_vel);
+                            var e = parseFloat(properties.e_vel);
+                            var u = parseFloat(properties.u_vel);
+                            var hide = false
+                            
+                            var mag = Math.sqrt((n*n) + (e*e));
+                            var magScale = 3 * Map_.vectorExaggeration;
+                            var iconsize = (magScale * mag) + 10;
+                            if (iconsize > 150) {
+                                iconsize = 150; // cap at 150
+                            }
+                            else if (iconsize < 20) {
+                                iconsize = 20; // min 20
+                            }
+                            var angle = Math.atan2(e,n) * (180 / Math.PI);
+                            var deg = (Math.round(angle));
+                            if (deg < 0) {
+                                deg = 360 + deg;
+                            }
+                            var smallIcon = new L.Icon({
+                                iconSize: hide ? 0 : [iconsize, iconsize],
+                                iconAnchor: [iconsize/2, iconsize/2],
+                                iconUrl: 'Missions/MGViz/Images/arrows/arrow-'+deg+'.png'
+                            });
+                            return {
+                                icon: smallIcon
+                            };
+                        }
+                }
+            break;
         }
         var vectorTileOptions = {
             layerName: layerObj.display_name,
@@ -1257,7 +1291,17 @@ async function makeLayer(layerObj, evenIfOff, forceGeoJSON) {
                     if (ToolController_.activeToolName != 'ChartTool') {
                         ToolController_.makeTool( 'ChartTool' )
                     }
-                    ToolController_.getTool( 'ChartTool' ).getCoseismicSites(e.layer.properties.id)
+                    var ct = ToolController_.getTool( 'ChartTool' )
+                    ct.getCoseismicSites(e.layer.properties.id)
+
+
+                    // load earthquake vectors
+                    var vname = L_.layers.nameToUUID['Vectors'][0]
+                    var vectorsUrl = L_.layers.data[vname].url.substring(0, L_.layers.data[vname].url.lastIndexOf('earthquake_vectors'))
+                    L_.layers.data[vname].url = vectorsUrl + 'earthquake_vectors/' + e.layer.properties.id + '/' + ct.source + '/' + ct.fil + '/' + ct.type
+                    console.log(L_.layers.data[vname].url)
+                    Map_.refreshLayer( L_.layers.data[vname])
+
                 }
             })
             // Set all vector tile points on top with same z index so that they're all selectable

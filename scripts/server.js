@@ -684,14 +684,24 @@ setups.getBackendSetups(function (setups) {
     function(error, stdout, stderr) { res.send(stdout); console.log(stderr);});
   });
 
-    //trop
-    app.get('/api/eseses/trop/:site/:param/:date', function(req, res) {
-        const site = encodeURIComponent(req.params.site);
-        const param = encodeURIComponent(req.params.param);
-        const date = encodeURIComponent(req.params.date);
-        execFile('python3', ['private/eseses/trop.py', site, param, date], {maxBuffer: 1024 * 1024},
-        function(error, stdout, stderr) { res.send(stdout); console.log(stderr);});
-      });
+  //trop
+  app.get('/api/eseses/trop/:site/:param/:date', function(req, res) {
+      const site = encodeURIComponent(req.params.site);
+      const param = encodeURIComponent(req.params.param);
+      const date = encodeURIComponent(req.params.date);
+      execFile('python3', ['private/eseses/trop.py', site, param, date], {maxBuffer: 1024 * 1024},
+      function(error, stdout, stderr) { res.send(stdout); console.log(stderr);});
+    });
+
+    //earthquake_vectors
+    app.get('/api/eseses/earthquake_vectors/:coseismic_ic/:source/:fil/:type', function(req, res) {
+      const coseismic_ic = encodeURIComponent(req.params.coseismic_ic);
+      const source = encodeURIComponent(req.params.source);
+      const fil = encodeURIComponent(req.params.fil);
+      const type = encodeURIComponent(req.params.type);
+      execFile('python3', ['private/eseses/earthquake_vectors.py', coseismic_ic, source, fil, type], {maxBuffer: 1024 * 1024},
+      function(error, stdout, stderr) { res.send(stdout); console.log(stderr);});
+    });
 
   //tacls
   app.get('/api/eseses/tacls/:mode/:site/:source/:fil/:type/:version/:neu', function(req, res) {
