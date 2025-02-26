@@ -52,6 +52,8 @@ for site in sites_json['sites']:
         print(f"Error retrieving metadata JSON data: {e}")
         sys.exit()
 
+    north_movement = ''
+    east_movement = ''
     for component_terms, value in metadata_json['Component Terms'].items():
         c_source, c_fil = component_terms.split(' - ')
         # ignore offsets that don't match input parameters

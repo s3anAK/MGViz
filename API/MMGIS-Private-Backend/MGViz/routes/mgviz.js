@@ -65,7 +65,7 @@ function coseismic(req, res, next, type) {
     //Get list of coseismics
     sequelize
       .query(
-        "SELECT id, time_utc" +
+        "SELECT id, concat_ws(' -- ', time_utc, location) as time_utc" +
           " " +
           "FROM coseismic" +
           " " +

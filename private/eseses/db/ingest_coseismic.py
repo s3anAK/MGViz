@@ -8,7 +8,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import xml.etree.ElementTree as ET
 
-LIST = "./CoseismicOffset_EarthquakeMasterList.xlsx"
+LIST = "./CoseismicOffset_EarthquakeMasterList.csv"
 METADATA = '../metadata'
 
 
@@ -19,7 +19,7 @@ def ingest_coseismics(df, conn, limit):
 
     for idx, row in df.iterrows():
         # Get the Date and Time
-        date = row['Date (UTC)'].date()
+        date = row['Date (UTC)']
         time = row['Time (UTC)']
         location = row['Location/Local Name']
         magnitude = row['Magnitude']
@@ -42,7 +42,7 @@ def ingest_coseismics(df, conn, limit):
 
         # Ignore invalid values
         try:
-            datetime.strptime(date_time, '%Y-%m-%d %H:%M:%S+00:00')
+            datetime.strptime(date_time, '%m/%d/%y %H:%M:%S+00:00')
         except ValueError:
             print('Invalid datetime...skipping')
             skipped += 1
@@ -221,7 +221,7 @@ try:
     if not args.linkonly:
         # Parse Excel sheet
         print('Parsing ', args.filepath)
-        df = pd.read_excel(args.filepath, skiprows=[0, 2])
+        df = pd.read_csv(args.filepath, skiprows=[0, 2])
         print(df.head())
         ingest_coseismics(df, conn, int(args.limit))
     if not args.nolink:

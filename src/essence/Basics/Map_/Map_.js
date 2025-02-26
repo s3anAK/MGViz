@@ -1156,7 +1156,7 @@ async function makeLayer(layerObj, evenIfOff, forceGeoJSON) {
                               "fillColor": "#80ff00",
                               "fillOpacity": 0.8,
                               "opacity": 1,
-                              "radius": radius + 3,
+                              "radius": radius + 4,
                               "weight": 1
                             }
                         }
@@ -1232,19 +1232,22 @@ async function makeLayer(layerObj, evenIfOff, forceGeoJSON) {
                 layerObj.style.vtLayer = {
                     "sliced": 
                         function(properties, zoom) {
+                            if (properties.n_vel == '' || properties.e_vel == '') {
+                                return;
+                            }
                             var n = parseFloat(properties.n_vel);
                             var e = parseFloat(properties.e_vel);
                             var u = parseFloat(properties.u_vel);
                             var hide = false
-                            
+
                             var mag = Math.sqrt((n*n) + (e*e));
                             var magScale = 3 * Map_.vectorExaggeration;
-                            var iconsize = (magScale * mag) + 10;
+                            var iconsize = (magScale * mag) + 30;
                             if (iconsize > 150) {
                                 iconsize = 150; // cap at 150
                             }
-                            else if (iconsize < 20) {
-                                iconsize = 20; // min 20
+                            else if (iconsize > 0 && iconsize < 50) {
+                                iconsize = 50; // min 50
                             }
                             var angle = Math.atan2(e,n) * (180 / Math.PI);
                             var deg = (Math.round(angle));

@@ -198,7 +198,7 @@ var ChartTool = {
       '<div id="SseDiv"><input type="checkbox" name="checkSse" value="true" checked="checked"><span style="font-size:13px;"> Detected Events</span></div>',
       '<div id="sitesDiv" style="margin-top:4px;">',
       '<br>Coseismic Events:<br>',
-      '<select id="selectCoseismic" style="color:black;">',
+      '<select id="selectCoseismic" style="color:black; width:150px">',
       '</select><br>',
       '<br>Site Code:<br>',
       '<input id="textSite" type="text" name="sitecode" style="color:#000000;width:60px;"/>',
@@ -2517,7 +2517,7 @@ function getCoseismics() {
       $('#selectCoseismic').empty()
       $.each(data['coseismics'], function (key, value) {
         if ('id' in value && 'time_utc' in value) { 
-          var formattedTime = value.time_utc.replace('T', ' ').slice(0, -5) + 'Z';
+          var formattedTime = value.time_utc
           $('#selectCoseismic').append($('<option></option>')
             .attr('value', value.id)
             .text(formattedTime));
