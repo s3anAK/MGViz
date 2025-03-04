@@ -38,7 +38,7 @@ except requests.exceptions.RequestException as e:
 
 features = []
 for site in sites_json['sites']:
-    metadata_url = f'{API_URL}/eseses/site/{site['site_id']}/{source}/{fil}/{ttype}'
+    metadata_url = f"{API_URL}/eseses/site/{site['site_id']}/{source}/{fil}/{ttype}"
     # print(metadata_url)
     # print(site['time_utc'])
     date_format = "%Y-%m-%d"
