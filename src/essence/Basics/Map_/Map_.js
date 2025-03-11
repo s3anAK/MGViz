@@ -1156,8 +1156,13 @@ async function makeLayer(layerObj, evenIfOff, forceGeoJSON) {
                               "fillColor": "#80ff00",
                               "fillOpacity": 0.8,
                               "opacity": 1,
-                              "radius": radius + 4,
-                              "weight": 1
+                              "radius": radius,
+                              "weight": 1,
+                              icon: new L.Icon({
+                                iconSize: [32, 32],
+                                iconAnchor: [16, 36],
+                                iconUrl: 'Missions/MGViz/Images/earthquake.png' // https://www.flaticon.com/free-icons/earthquake
+                                })
                             }
                         }
                 }

@@ -130,7 +130,7 @@ function cursorInfoMouseMove(e) {
 async function cursorClick() {
     // Copy earthquake info to clipboard
     var text = CursorInfo.cursorInfoDiv.html().replaceAll('<br>', '\n')
-    if (text[0] == 'M') {
+    if (text.includes('Depth')) {
         try {
             await navigator.clipboard.writeText(text)
             alert('Content copied to clipboard:\n' + text)
