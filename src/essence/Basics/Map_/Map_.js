@@ -1307,7 +1307,6 @@ async function makeLayer(layerObj, evenIfOff, forceGeoJSON) {
                     var vname = L_.layers.nameToUUID['Vectors'][0]
                     var vectorsUrl = L_.layers.data[vname].url.substring(0, L_.layers.data[vname].url.lastIndexOf('earthquake_vectors'))
                     L_.layers.data[vname].url = vectorsUrl + 'earthquake_vectors/' + e.layer.properties.id + '/' + ct.source + '/' + ct.fil + '/' + ct.type
-                    console.log(L_.layers.data[vname].url)
                     Map_.refreshLayer( L_.layers.data[vname])
 
                 }

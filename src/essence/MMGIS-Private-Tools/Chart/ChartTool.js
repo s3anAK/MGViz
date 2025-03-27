@@ -687,6 +687,11 @@ var ChartTool = {
       ToolController_.activeTool.stackOn = false;
       $('input[name=checkStack]').prop("checked", ToolController_.activeTool.stackOn);
       L_.resetLayerFills();
+      // Clear earthquake vectors
+      var vname = L_.layers.nameToUUID['Vectors'][0]
+      var vectorsUrl = L_.layers.data[vname].url.substring(0, L_.layers.data[vname].url.lastIndexOf('earthquake_vectors'))
+      L_.layers.data[vname].url = vectorsUrl + 'earthquake_vectors/0/0/0/0'
+      Map_.refreshLayer( L_.layers.data[vname])
     });
     $('#showCharts').click(function () {
       if ($('#contentDiv').is(":hidden")) {
