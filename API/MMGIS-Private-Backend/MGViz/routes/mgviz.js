@@ -35,13 +35,19 @@ function coseismic(req, res, next, type) {
         " " +
         "FROM site_coseismic, coseismic, site" +
         " " +
-        "WHERE site_coseismic.coseismic_id = " + params.id + 
+        "WHERE site_coseismic.coseismic_id = $site_coseismic_id" +
         " " +
-        "AND coseismic.id = " + params.id +
+        "AND coseismic.id = $coseismic_id" +
         " " + 
         "AND site.id = site_id" +
         " " + 
-        "ORDER BY site_id ASC"
+        "ORDER BY site_id ASC",
+        {
+          bind: {
+              site_coseismic_id: params.id,
+              coseismic_id: params.id
+          }
+        }
     )
     .then(([sites]) => {
       res.send({sites})
