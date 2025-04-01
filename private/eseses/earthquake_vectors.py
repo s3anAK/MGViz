@@ -2,7 +2,7 @@ import sys
 import re
 import requests
 import json
-
+from datetime import datetime, timedelta
 
 API_URL = 'http://localhost:8888/api'
 
@@ -64,7 +64,7 @@ for site in sites_json['sites']:
                 # print('\n' + direction)
                 for offset in coseismic['Offset (coseismic)']:
                     # Define the pattern for movement, error, and date
-                    pattern = r"(-?\d+\.\d+)  \+\/-\   (-?\d+\.\d+) mm \((\d{4}-\d{2}-\d{2} \[\d{4}\.\d{4,5}\])"
+                    pattern = r"(-?\d+\.\d+)\s+\+/-\s+(-?\d+\.\d+)\s+mm\s+\((\d{4}-\d{2}-\d{2} \[\d{4}\.\d{4,5}\])\)"
                     # Use the re.search function to find the first occurrence of the pattern in the string
                     match = re.search(pattern, offset)
                     if match:
@@ -72,8 +72,10 @@ for site in sites_json['sites']:
                         error = float(match.group(2))
                         date_str = match.group(3).split()[0]
 
-                        # Get coseismic that matches the day
-                        if date_str == date_utc:
+                        # Get coseismic that matches within a day
+                        date_difference = abs(datetime.strptime(date_utc, "%Y-%m-%d") - datetime.strptime(date_str, "%Y-%m-%d"))
+
+                        if date_difference <= timedelta(days=1):
                             # print(f"Movement: {movement}")
                             # print(f"Error: {error} mm")
                             # print(f"Date: {date_str}")
