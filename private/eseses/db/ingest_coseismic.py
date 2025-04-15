@@ -42,7 +42,7 @@ def ingest_coseismics(df, conn, limit):
 
         # Ignore invalid values
         try:
-            datetime.strptime(date_time, '%m/%d/%y %H:%M:%S+00:00')
+            datetime.strptime(date_time, '%Y-%m-%d %H:%M:%S+00:00')
         except ValueError:
             print('Invalid datetime...skipping')
             skipped += 1
