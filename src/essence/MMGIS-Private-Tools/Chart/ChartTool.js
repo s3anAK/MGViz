@@ -2549,11 +2549,19 @@ function getCoseismicSites(id) {
       if (sites.length > 0) {
         $('#siteSelect').empty();
         L_.resetLayerFills();
-        ToolController_.activeTool.site = '';
-        ToolController_.activeTool.sites = [];
-        ToolController_.activeTool.siteOptionsList = [];
-        ToolController_.activeTool.stackOn = false;
+        var ct = ToolController_.getTool( 'ChartTool' )
+        ct.site = '';
+        ct.sites = [];
+        ct.siteOptionsList = [];
+        ct.stackOn = false;
         ToolController_.getTool('SearchTool').search(sites, 'Sites');
+
+        // load earthquake vectors
+        var vname = L_.layers.nameToUUID['Vectors'][0]
+        var vectorsUrl = L_.layers.data[vname].url.substring(0, L_.layers.data[vname].url.lastIndexOf('earthquake_vectors'))
+        L_.layers.data[vname].url = vectorsUrl + 'earthquake_vectors/' + id + '/' + ct.source + '/' + ct.fil + '/' + ct.type
+        Map_.refreshLayer( L_.layers.data[vname])
+
       } else {
         alert('No sites were found with the coseismic event.');
       }

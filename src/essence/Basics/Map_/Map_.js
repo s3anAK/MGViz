@@ -1302,13 +1302,6 @@ async function makeLayer(layerObj, evenIfOff, forceGeoJSON) {
                     var ct = ToolController_.getTool( 'ChartTool' )
                     ct.getCoseismicSites(e.layer.properties.id)
 
-
-                    // load earthquake vectors
-                    var vname = L_.layers.nameToUUID['Vectors'][0]
-                    var vectorsUrl = L_.layers.data[vname].url.substring(0, L_.layers.data[vname].url.lastIndexOf('earthquake_vectors'))
-                    L_.layers.data[vname].url = vectorsUrl + 'earthquake_vectors/' + e.layer.properties.id + '/' + ct.source + '/' + ct.fil + '/' + ct.type
-                    Map_.refreshLayer( L_.layers.data[vname])
-
                 }
             })
             // Set all vector tile points on top with same z index so that they're all selectable
