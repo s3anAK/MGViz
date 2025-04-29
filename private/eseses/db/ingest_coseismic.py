@@ -73,7 +73,7 @@ def link_sites(metadata_dir, conn):
         if filename.endswith('.xml'):  # Check if file is an XML file
             site = filename.split('.')[0]
             file_path = os.path.join(metadata_dir, filename)
-            record = None
+            records = []
             try:
                 tree = ET.parse(file_path)  # Parse the XML file into an ElementTree object
                 root = tree.getroot()  # Get the root element of the document
@@ -104,10 +104,13 @@ def link_sites(metadata_dir, conn):
 
                                 try:
                                     cur.execute(query, (date_minus1, date_plus1))
-                                    row = cur.fetchone()
-                                    if row is not None:
+                                    rows = cur.fetchall()
+                                    for row in rows:
                                         coseismic_id = row[0]
+                                        print(f'Coseismic {str(coseismic_id)} found for {value} site: {site}')
                                         record = (site, str(coseismic_id), neu)
+                                        records.append(record)
+                                        break # match only one coseismic
                                     else:
                                         print(f'No matching coseismic found for {value} site: {site}')
                                 except (Exception, psycopg2.DatabaseError) as error:
@@ -115,8 +118,9 @@ def link_sites(metadata_dir, conn):
             except ET.ParseError as e:
                 print(f'Failed to parse file {file_path}: {e}')
 
-            if record is not None:
-                print(record)
+            for record in records:
+                # Insert into site_coseismic table
+                print(f'Inserting record: {record}')
                 try:
                     sql = '''
                     INSERT INTO site_coseismic (site_id, coseismic_id, neu)
