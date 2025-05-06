@@ -97,7 +97,7 @@ def ingest_detection(input_dir, conn, limit):
             eventtype = data['metadata'].get('eventtype', None)
             for detection in data['detections']:
                 detection_id = detection['id']
-                probability = data['metadata'].get('probabilities', None)
+                probability = detection.get('probabilities', None)
                 # convert from decimal year or JavaScript seconds
                 if '.' in str(detection['startdate']):
                     startdate = convert_decimal_date(detection['startdate'])
