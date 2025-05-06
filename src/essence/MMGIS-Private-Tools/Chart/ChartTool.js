@@ -197,9 +197,9 @@ var ChartTool = {
       '</select></div>',
       '<div id="SseDiv"><input type="checkbox" name="checkSse" value="true" checked="checked"><span style="font-size:13px;"> Detected Events</span></div>',
       '<div id="sitesDiv" style="margin-top:4px;">',
-      '<br>Coseismic Events:<br>',
+      '<div id="coseismicDiv"><br>Coseismic Events:<br>',
       '<select id="selectCoseismic" style="color:black; width:150px">',
-      '</select><br>',
+      '</select><br></div>',
       '<br>Site Code:<br>',
       '<input id="textSite" type="text" name="sitecode" style="color:#000000;width:60px;"/>',
       '<button id="buttonAdd" style="color:#000000;padding:2px;float:right;width:60px;font-size:11px;">Add</button><br>',
@@ -416,6 +416,7 @@ var ChartTool = {
       if (this.value === "tropospheric") {
         $('#geodeticDiv').hide()
         $('#troposphericDiv').show();
+        $('#coseismicDiv').hide()
         ChartTool.uom = 'm';
         $('#labelUnits').text(' ' + ChartTool.uom);
         $('input[name=checkSeparation]').prop('checked', false);
@@ -424,6 +425,7 @@ var ChartTool = {
       } else {
         $('#geodeticDiv').show();
         $('#troposphericDiv').hide()
+        $('#coseismicDiv').show()
         ChartTool.uom = 'mm';
         $('#labelUnits').text(' ' + ChartTool.uom);
         $('input[name=checkSeparation]').prop('checked', true);

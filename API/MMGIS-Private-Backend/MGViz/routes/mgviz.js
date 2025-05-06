@@ -3,7 +3,6 @@ const router = express.Router();
 const { sequelize } = require("../../../connection");
 const logger = require("../../../logger");
 
-
 router.get("/coseismic", function (req, res, next) {
   coseismic(req, res, next, "get");
 });
@@ -11,7 +10,6 @@ router.get("/coseismic", function (req, res, next) {
 router.get("/earthquakes", function (req, res, next) {
   earthquakes(req, res, next, "get");
 });
-
 
 function coseismic(req, res, next, type) {
   //Have it accept either post or get
@@ -30,55 +28,54 @@ function coseismic(req, res, next, type) {
   if (params.id && Number.isInteger(parseInt(params?.id))) {
     //Get list of sites associated with coseismic id
     sequelize
-    .query(
-      "SELECT site_id, x, y, neu, time_utc" +
-        " " +
-        "FROM site_coseismic, coseismic, site" +
-        " " +
-        "WHERE site_coseismic.coseismic_id = $site_coseismic_id" +
-        " " +
-        "AND coseismic.id = $coseismic_id" +
-        " " + 
-        "AND site.id = site_id" +
-        " " + 
-        "ORDER BY site_id ASC",
+      .query(
+        "SELECT site_id, x, y, neu, time_utc" +
+          " " +
+          "FROM site_coseismic, coseismic, site" +
+          " " +
+          "WHERE site_coseismic.coseismic_id = $site_coseismic_id" +
+          " " +
+          "AND coseismic.id = $coseismic_id" +
+          " " +
+          "AND site.id = site_id" +
+          " " +
+          "ORDER BY site_id ASC",
         {
           bind: {
-              site_coseismic_id: params.id,
-              coseismic_id: params.id
-          }
+            site_coseismic_id: params.id,
+            coseismic_id: params.id,
+          },
         }
-    )
-    .then(([sites]) => {
-      res.send({sites})
-    })
-    .catch((err) => {
-      logger(
-        "error",
-        "SQL error while acquiring coseismic sites.",
-        req.originalUrl,
-        req,
-        err
-      );
-      res.send({
-        status: "failure",
-        message: "SQL error while acquiring coseismic sites.",
-        body: {},
+      )
+      .then(([sites]) => {
+        res.send({ sites });
+      })
+      .catch((err) => {
+        logger(
+          "error",
+          "SQL error while acquiring coseismic sites.",
+          req.originalUrl,
+          req,
+          err
+        );
+        res.send({
+          status: "failure",
+          message: "SQL error while acquiring coseismic sites.",
+          body: {},
+        });
       });
-    });    
-  }
-  else {
+  } else {
     //Get list of coseismics
     sequelize
       .query(
-        "SELECT id, concat_ws(' -- ', time_utc, location) as time_utc" +
+        "SELECT id, concat_ws(' -- ', concat_ws(' -- ', time_utc, magnitude), location) as time_utc" +
           " " +
           "FROM coseismic" +
           " " +
           "ORDER BY time_utc DESC"
       )
       .then(([coseismics]) => {
-        res.send({coseismics})
+        res.send({ coseismics });
       })
       .catch((err) => {
         logger(
@@ -114,19 +111,19 @@ function earthquakes(req, res, next, type) {
   sequelize
     .query(
       "SELECT json_build_object(" +
-      "'type', 'FeatureCollection'," +
-      "'features', json_agg(" +
-          "json_build_object(" +
-              "'type', 'Feature'," +
-              "'geometry', ST_AsGeoJSON(geom)::json," +
-              "'properties', jsonb_strip_nulls(to_jsonb(coseismic) - 'geometry')" +
-          ")" +
+        "'type', 'FeatureCollection'," +
+        "'features', json_agg(" +
+        "json_build_object(" +
+        "'type', 'Feature'," +
+        "'geometry', ST_AsGeoJSON(geom)::json," +
+        "'properties', jsonb_strip_nulls(to_jsonb(coseismic) - 'geometry')" +
         ")" +
-      ")" +
-      "FROM coseismic"
+        ")" +
+        ")" +
+        "FROM coseismic"
     )
     .then(([earthquakes]) => {
-      res.send(earthquakes[0]['json_build_object'])
+      res.send(earthquakes[0]["json_build_object"]);
     })
     .catch((err) => {
       logger(
@@ -143,6 +140,5 @@ function earthquakes(req, res, next, type) {
       });
     });
 }
-
 
 module.exports = router;
