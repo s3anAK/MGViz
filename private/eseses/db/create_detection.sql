@@ -12,10 +12,12 @@ CREATE TABLE IF NOT EXISTS public.detection
     model_id integer,
     label text COLLATE pg_catalog."default",
     eventtype text COLLATE pg_catalog."default",
-    startdate time with time zone,
-    enddate time with time zone,
     probability numeric,
+    startdate timestamp with time zone NOT NULL,
+    enddate timestamp with time zone NOT NULL,
+    detection_id integer,
     CONSTRAINT detection_pkey PRIMARY KEY (id),
+    CONSTRAINT detection_site_id_detection_id_model_id_key UNIQUE (site_id, detection_id, model_id),
     CONSTRAINT detection_model_fk FOREIGN KEY (model_id)
         REFERENCES public.model (id) MATCH SIMPLE
         ON UPDATE NO ACTION
