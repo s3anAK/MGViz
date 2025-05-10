@@ -112,27 +112,57 @@ function detections(req, res, next, type) {
     return;
   }
 
-  sequelize
-    .query(
-      "SELECT json_build_object('type', 'FeatureCollection', 'features', json_agg(json_build_object('type', 'Feature', 'geometry', ST_AsGeoJSON(geom)::json, 'properties', jsonb_strip_nulls(to_jsonb(detection_site) - 'geometry')))) FROM (SELECT site.id, detection_id, detection.label, eventtype, startdate, enddate, ST_GeomFROMText('POINT(' || cast(x as text)|| ' ' || cast(y as text) || ')', 4326) as geom FROM public.detection, site WHERE detection.site_id = site.id and probability is not null ) as detection_site;"
-    )
-    .then(([detections]) => {
-      res.send(detections[0]["json_build_object"]);
-    })
-    .catch((err) => {
-      logger(
-        "error",
-        "SQL error while acquiring detections.",
-        req.originalUrl,
-        req,
-        err
-      );
-      res.send({
-        status: "failure",
-        message: "SQL error while acquiring detections.",
-        body: {},
+  if (isISODateString(params.startdate) && isISODateString(params.enddate)) {
+    sequelize
+      .query(
+        "SELECT json_build_object('type', 'FeatureCollection', 'features', json_agg(json_build_object('type', 'Feature', 'geometry', ST_AsGeoJSON(geom)::json, 'properties', jsonb_strip_nulls(to_jsonb(detection_site) - 'geometry')))) FROM (SELECT site.id, detection_id, detection.label, eventtype, startdate, enddate, ST_GeomFROMText('POINT(' || cast(x as text)|| ' ' || cast(y as text) || ')', 4326) as geom FROM public.detection, site WHERE detection.site_id = site.id and probability is not null AND startdate >= $startdate AND enddate <= $enddate) as detection_site;",
+        {
+          bind: {
+            startdate: params.startdate,
+            enddate: params.enddate,
+          },
+        }
+      )
+      .then(([detections]) => {
+        res.send(detections[0]["json_build_object"]);
+      })
+      .catch((err) => {
+        logger(
+          "error",
+          "SQL error while acquiring detections.",
+          req.originalUrl,
+          req,
+          err
+        );
+        res.send({
+          status: "failure",
+          message: "SQL error while acquiring detections.",
+          body: {},
+        });
       });
-    });
+  } else {
+    sequelize
+      .query(
+        "SELECT json_build_object('type', 'FeatureCollection', 'features', json_agg(json_build_object('type', 'Feature', 'geometry', ST_AsGeoJSON(geom)::json, 'properties', jsonb_strip_nulls(to_jsonb(detection_site) - 'geometry')))) FROM (SELECT site.id, detection_id, detection.label, eventtype, startdate, enddate, ST_GeomFROMText('POINT(' || cast(x as text)|| ' ' || cast(y as text) || ')', 4326) as geom FROM public.detection, site WHERE detection.site_id = site.id and probability is not null) as detection_site;",
+      )
+      .then(([detections]) => {
+        res.send(detections[0]["json_build_object"]);
+      })
+      .catch((err) => {
+        logger(
+          "error",
+          "SQL error while acquiring detections.",
+          req.originalUrl,
+          req,
+          err
+        );
+        res.send({
+          status: "failure",
+          message: "SQL error while acquiring detections.",
+          body: {},
+        });
+      });    
+  }
 }
 
 function earthquakes(req, res, next, type) {
@@ -180,6 +210,11 @@ function earthquakes(req, res, next, type) {
         body: {},
       });
     });
+}
+
+function isISODateString(dateString) {
+  const date = new Date(dateString);
+  return !isNaN(date.getTime()) && dateString === date.toISOString();
 }
 
 module.exports = router;
