@@ -115,7 +115,7 @@ function detections(req, res, next, type) {
   if (isISODateString(params.startdate) && isISODateString(params.enddate)) {
     sequelize
       .query(
-        "SELECT json_build_object('type', 'FeatureCollection', 'features', json_agg(json_build_object('type', 'Feature', 'geometry', ST_AsGeoJSON(geom)::json, 'properties', jsonb_strip_nulls(to_jsonb(detection_site) - 'geometry')))) FROM (SELECT site.id, detection_id, detection.label, eventtype, startdate, enddate, ST_GeomFROMText('POINT(' || cast(x as text)|| ' ' || cast(y as text) || ')', 4326) as geom FROM public.detection, site WHERE detection.site_id = site.id and probability is not null AND startdate >= $startdate AND enddate <= $enddate) as detection_site;",
+        "SELECT json_build_object('type', 'FeatureCollection', 'features', json_agg(json_build_object('type', 'Feature', 'geometry', ST_AsGeoJSON(geom)::json, 'properties', jsonb_strip_nulls(to_jsonb(detection_site) - 'geometry')))) FROM (SELECT site.id, detection_id, detection.label, eventtype, startdate, enddate, ST_GeomFROMText('POINT(' || cast(x as text)|| ' ' || cast(y as text) || ')', 4326) as geom FROM public.detection, site WHERE detection.site_id = site.id and probability is not null AND (startdate, enddate) OVERLAPS ($startdate, $enddate)) as detection_site;",
         {
           bind: {
             startdate: params.startdate,
