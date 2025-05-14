@@ -2,6 +2,7 @@ import sys
 import re
 import requests
 import json
+import os
 from datetime import datetime, timedelta
 
 API_URL = 'http://localhost:8888/api'
@@ -26,6 +27,16 @@ filters = {'flt': 'Filter',
            'clean': 'Clean',
            'raw': 'Raw'}
 
+# Use cached file if it exists and is less than one day old
+vectors_json = f'Missions/MGViz/Layers/earthquake_vectors/{coseismic_id}/{source}/{fil}/{ttype}.json'
+if os.path.exists(vectors_json):
+    mtime = datetime.fromtimestamp(os.path.getmtime(vectors_json))
+    diff = datetime.now() - mtime
+    if diff.days == 0:
+        with open(vectors_json, 'r') as out:
+            print(out.read())
+        sys.exit()
+
 sites_json = ''
 url = API_URL + '/mgviz/coseismic?id=' + coseismic_id
 try:
@@ -38,6 +49,7 @@ except requests.exceptions.RequestException as e:
 
 features = []
 for site in sites_json['sites']:
+    # print(site)
     metadata_url = f"{API_URL}/eseses/site/{site['site_id']}/{source}/{fil}/{ttype}"
     # print(metadata_url)
     # print(site['time_utc'])
@@ -74,6 +86,8 @@ for site in sites_json['sites']:
 
                         # Get coseismic that matches within a day
                         date_difference = abs(datetime.strptime(date_utc, "%Y-%m-%d") - datetime.strptime(date_str, "%Y-%m-%d"))
+                        # print(f"date_utc: {date_utc}")
+                        # print(f"date_str: {date_str}")
 
                         if date_difference <= timedelta(days=1):
                             # print(f"Movement: {movement}")
@@ -111,6 +125,9 @@ data = {
 }
 data['features'] = features
 
-# Convert the dictionary to a JSON object and print
+# Convert the dictionary to a JSON object, save as a file, and print
+os.makedirs(os.path.dirname(vectors_json), exist_ok=True)
+with open(vectors_json, 'w') as json_file:
+    json.dump(data, json_file, indent=4)
 print(json.dumps(data))
 sys.exit()

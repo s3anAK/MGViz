@@ -694,12 +694,13 @@ setups.getBackendSetups(function (setups) {
     });
 
     //earthquake_vectors
-    app.get('/api/eseses/earthquake_vectors/:coseismic_ic/:source/:fil/:type', function(req, res) {
-      const coseismic_ic = encodeURIComponent(req.params.coseismic_ic);
+    app.get('/api/eseses/earthquake_vectors/:coseismic_id/:source/:fil/:type', function(req, res) {
+      req.setTimeout(5 * 60 * 1000); // 5 minutes in milliseconds
+      const coseismic_id = encodeURIComponent(req.params.coseismic_id);
       const source = encodeURIComponent(req.params.source);
       const fil = encodeURIComponent(req.params.fil);
       const type = encodeURIComponent(req.params.type);
-      execFile('python3', ['private/eseses/earthquake_vectors.py', coseismic_ic, source, fil, type], {maxBuffer: 1024 * 1024},
+      execFile('python3', ['private/eseses/earthquake_vectors.py', coseismic_id, source, fil, type], {maxBuffer: 1024 * 1024},
       function(error, stdout, stderr) { res.send(stdout); console.log(stderr);});
     });
 
