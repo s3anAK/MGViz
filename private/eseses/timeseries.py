@@ -56,9 +56,14 @@ def fetch_data(server, directory):
             print('Skipping already extracted ' + gztar)
         else:
             print('Unzipping ' + gztar)
-            with gzip.open(gztar, 'rb') as f_in:
-                with open(tarfn, 'wb') as f_out:
-                    shutil.copyfileobj(f_in, f_out)
+            try:
+                with gzip.open(gztar, 'rb') as f_in:
+                    with open(tarfn, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+            except PermissionError:
+                print('Permission denied for ' + tarfn)
+                os.remove(tarfn)
+                continue
             try:
                 tar = tarfile.open(tarfn)
                 extract_dir = './data'
