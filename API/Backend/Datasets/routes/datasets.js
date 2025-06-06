@@ -10,6 +10,7 @@ const inspect = require("util").inspect;
 
 const { sequelize } = require("../../../connection");
 
+const Utils = require("../../../utils.js");
 const logger = require("../../../logger");
 const datasets = require("../models/datasets");
 const csvtojson = require("csvtojson");
@@ -38,15 +39,13 @@ function get(req, res, next) {
     Datasets.findOne({ where: { name: queries[i].dataset } })
       .then((result) => {
         if (result) {
-          const column = queries[i].column
-            .replace(/[`~!@#$%^&*|+\-=?;:'",.<>\{\}\[\]\\\/]/gi, "")
-            .replace(/[^ -~]+/g, "");
+          const column = queries[i].column;
           sequelize
             .query(
               "SELECT * FROM " +
-                result.dataValues.table +
+                Utils.forceAlphaNumUnder(result.dataValues.table) +
                 ' WHERE "' +
-                column +
+                Utils.forceAlphaNumUnder(column) +
                 '"=:search ORDER BY id ASC LIMIT 100',
               {
                 replacements: {
@@ -83,15 +82,68 @@ function get(req, res, next) {
 router.post("/entries", function (req, res, next) {
   Datasets.findAll()
     .then((sets) => {
-      if (sets && sets.length > 0) {
+      if (sets) {
         let entries = [];
         for (let i = 0; i < sets.length; i++) {
           entries.push({ name: sets[i].name, updated: sets[i].updatedAt });
         }
-        res.send({
-          status: "success",
-          body: { entries: entries },
-        });
+        // For each entry, list all occurrences in latest configuration objects
+        sequelize
+          .query(
+            `
+            SELECT t1.*
+            FROM configs AS t1
+            INNER JOIN (
+                SELECT mission, MAX(version) AS max_version
+                FROM configs
+                GROUP BY mission
+            ) AS t2
+            ON t1.mission = t2.mission AND t1.version = t2.max_version ORDER BY mission ASC;
+            `
+          )
+          .then(([results]) => {
+            // Populate occurrences
+            results.forEach((m) => {
+              Utils.traverseLayers(m.config.layers, (layer, path) => {
+                entries.forEach((entry) => {
+                  entry.occurrences = entry.occurrences || {};
+                  entry.occurrences[m.mission] =
+                    entry.occurrences[m.mission] || [];
+                  if (layer?.variables?.datasetLinks?.length != null) {
+                    layer.variables.datasetLinks.forEach((d) => {
+                      if (d.dataset === entry.name) {
+                        entry.occurrences[m.mission].push({
+                          name: layer.name,
+                          uuid: layer.uuid,
+                          path: path,
+                        });
+                      }
+                    });
+                  }
+                });
+              });
+            });
+
+            res.send({
+              status: "success",
+              body: { entries: entries },
+            });
+            return null;
+          })
+          .catch((err) => {
+            logger(
+              "error",
+              "Failed to find missions.",
+              req.originalUrl,
+              req,
+              err
+            );
+            res.send({
+              status: "failure",
+              message: "Failed to find missions.",
+            });
+            return null;
+          });
       } else {
         res.send({
           status: "failure",
@@ -121,7 +173,7 @@ router.post("/search", function (req, res, next) {
         sequelize
           .query(
             "SELECT properties, ST_AsGeoJSON(geom) FROM " +
-              table +
+              Utils.forceAlphaNumUnder(table) +
               " WHERE properties ->> :key = :value;",
             {
               replacements: {
@@ -149,6 +201,58 @@ router.post("/search", function (req, res, next) {
             logger(
               "error",
               "SQL error search through dataset.",
+              req.originalUrl,
+              req,
+              err
+            );
+            res.send({
+              status: "failure",
+              message: "SQL error.",
+            });
+          });
+      } else {
+        res.send({
+          status: "failure",
+          message: "Layer not found.",
+        });
+      }
+
+      return null;
+    })
+    .catch((err) => {
+      logger("error", "Failure finding dataset.", req.originalUrl, req, err);
+      res.send({
+        status: "failure",
+      });
+    });
+});
+
+/*
+ * req.query.layer
+ */
+router.get("/download", function (req, res, next) {
+  //First Find the table name
+  Datasets.findOne({ where: { name: req.query.layer } })
+    .then((result) => {
+      if (result) {
+        let table = result.dataValues.table;
+
+        sequelize
+          .query("SELECT * FROM " + Utils.forceAlphaNumUnder(table), {
+            replacements: {},
+          })
+          .then(([results]) => {
+            res.send({
+              status: "success",
+              body: results,
+            });
+
+            return null;
+          })
+          .catch((err) => {
+            logger(
+              "error",
+              "SQL error downloading dataset.",
               req.originalUrl,
               req,
               err
@@ -239,7 +343,7 @@ router.post("/upload", function (req, res, next) {
         if (fields.upsert === "true") {
           let condition = "";
           fields.header.forEach((elm) => {
-            elm = elm.replace(/[`~!@#$%^&*|+\-=?;:'",.<>\{\}\[\]\\\/]/gi, "");
+            elm = Utils.forceAlphaNumUnder(elm);
             condition +=
               ' AND ( a."' +
               elm +
@@ -255,12 +359,15 @@ router.post("/upload", function (req, res, next) {
           sequelize
             .query(
               "DELETE FROM " +
-                tableName +
+                Utils.forceAlphaNumUnder(tableName) +
                 " a USING " +
-                tableName +
+                Utils.forceAlphaNumUnder(tableName) +
                 " b " +
                 "WHERE b.id < a.id" +
-                condition
+                condition,
+              {
+                replacements: {},
+              }
             )
             .then(() => {
               res.send({
@@ -357,7 +464,14 @@ router.post("/upload", function (req, res, next) {
         tableObj = result.tableObj;
       } else {
         sequelize
-          .query("TRUNCATE TABLE " + result.table + " RESTART IDENTITY")
+          .query(
+            "TRUNCATE TABLE " +
+              Utils.forceAlphaNumUnder(result.table) +
+              " RESTART IDENTITY",
+            {
+              replacements: {},
+            }
+          )
           .then(() => {
             tableObj = result.tableObj;
           })
@@ -410,7 +524,14 @@ router.post("/recreate", function (req, res, next) {
 
       if (req.body.mode == "full") {
         sequelize
-          .query("TRUNCATE TABLE " + result.table + " RESTART IDENTITY")
+          .query(
+            "TRUNCATE TABLE " +
+              Utils.forceAlphaNumUnder(result.table) +
+              " RESTART IDENTITY",
+            {
+              replacements: {},
+            }
+          )
           .then(() => {
             populateDatasetTable(
               result.tableObj,

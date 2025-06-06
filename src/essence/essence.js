@@ -301,9 +301,9 @@ var essence = {
             UserInterface_.updateLayerUpdateButton('DISCONNECTED')
         }
     },
-    init: function (config, missionsList, swapping) {
+    init: async function (config, missionsList, swapping) {
         //Save the config data
-        this.configData = config
+        essence.configData = config
 
         //Make sure url matches mission
         var urlSplit = window.location.href.split('?')
@@ -312,7 +312,8 @@ var essence = {
         if (
             urlSplit.length == 1 ||
             swapping ||
-            (urlSplit[1] && urlSplit[1].split('=')[0] == 'forcelanding')
+            (urlSplit[1] && urlSplit[1].split('=')[0] === 'forcelanding') ||
+            (urlSplit[1] && urlSplit[1].split('=')[0] === '_preview')
         ) {
             //then no parameters or old ones
             url =
@@ -324,7 +325,7 @@ var essence = {
         }
 
         if (swapping) {
-            this.hasSwapped = true
+            essence.hasSwapped = true
             L_.clear()
             //UserInterface_.refresh();
         }
@@ -334,7 +335,7 @@ var essence = {
         if (!swapping) urlOnLayers = QueryURL.queryURL()
 
         //Parse all the configData
-        L_.init(this.configData, missionsList, urlOnLayers)
+        await L_.init(essence.configData, missionsList, urlOnLayers)
 
         if (swapping) {
             ToolController_.clear()
@@ -362,7 +363,7 @@ var essence = {
         //Make the time control
         TimeControl.init()
 
-        Map_.init(this.fina)
+        Map_.init(essence.fina)
 
         //Now that the map is made
         Coordinates.init()
@@ -422,7 +423,7 @@ var essence = {
                     mission: to,
                 },
                 function (data) {
-                    makeMission(data)
+                    essence.makeMission(data)
                 },
                 function (e) {
                     console.log(
@@ -439,8 +440,8 @@ var essence = {
                     'config.json' +
                     '?nocache=' +
                     new Date().getTime(),
-                function (data) {
-                    makeMission(data)
+                async function (data) {
+                    await essence.makeMission(data)
                 }
             ).fail(function () {
                 console.log(
@@ -453,15 +454,16 @@ var essence = {
                 makeMissionNotFoundDiv()
             })
         }
-
-        function makeMission(data) {
-            //Remove swap tool from data.tools
-            for (var i = data.tools.length - 1; i > 0; i--) {
-                if (data.tools[i].name === 'Swap') {
-                    data.tools.splice(i, 1)
-                }
+    },
+    makeMission: async function (data) {
+        //Remove swap tool from data.tools
+        for (var i = data.tools.length - 1; i > 0; i--) {
+            if (data.tools[i].name === 'Swap') {
+                data.tools.splice(i, 1)
             }
-            //Add swap to data.tools
+        }
+        //Add swap to data.tools
+        if (essence.configData) {
             for (var i in essence.configData.tools) {
                 if (essence.configData.tools[i].name === 'Swap') {
                     data.tools.push(essence.configData.tools[i])
@@ -475,9 +477,9 @@ var essence = {
             ) {
                 data.panels = ['viewer', 'map', 'globe']
             }
-
-            essence.init(data, L_.missionsList, true)
         }
+
+        await essence.init(data, L_.missionsList, true)
     },
     fina: function () {
         if (!essence.finalized) {
@@ -510,5 +512,7 @@ var essence = {
         }
     },
 }
+
+window.mmgisglobal.setConfiguration = essence.init
 
 export default essence

@@ -809,8 +809,13 @@ var Formulae_ = {
         return r.test(url)
     },
     csvToJSON: function (csv) {
+        if (csv == null) return {}
+
         var lines = csv.split('\n')
         var result = []
+
+        if (lines == null || lines[0] == null) return {}
+
         var headers = lines[0].split(',')
         for (var i = 1; i < lines.length; i++) {
             var obj = {}
@@ -1517,6 +1522,28 @@ var Formulae_ = {
         })
         return g
     },
+    parseIntoGeoJSON(data) {
+        let d
+        // []
+        if (Array.isArray(data) && data.length === 0) {
+            d = { type: 'FeatureCollection', features: [] }
+        }
+        // [<FeatureCollection>]
+        else if (
+            Array.isArray(data) &&
+            data[0] &&
+            data[0].type === 'FeatureCollection'
+        ) {
+            const nextData = { type: 'FeatureCollection', features: [] }
+            data.forEach((fc) => {
+                if (fc.type === 'FeatureCollection')
+                    nextData.features = nextData.features.concat(fc.features)
+            })
+            d = nextData
+        }
+
+        return d == null ? data : d
+    },
     // Gets all tiles with tile xyz at zoom z
     tilesWithin(xyz, z) {
         let tiles = []
@@ -2014,6 +2041,48 @@ var Formulae_ = {
             // If a selection existed before copying
             document.getSelection().removeAllRanges() // Unselect everything on the HTML document
             document.getSelection().addRange(selected) // Restore the original selection
+        }
+    },
+    speedToMetersPerSeconds(speed, fromUnit) {
+        switch (fromUnit) {
+            case 'm/s':
+            case 'mps':
+                return speed / 1
+            case 'km/h':
+            case 'kph':
+                return speed / 3.6
+            case 'mi/h':
+            case 'mph':
+                return speed / 2.2369362921
+            case 'kt':
+            case 'kn':
+                return speed / 1.9438444924
+            case 'ft/s':
+                return speed / 3.280839895
+            default:
+                console.warn(`Unknown speed conversion unit: ${fromUnit}`)
+                return speed
+        }
+    },
+    metersPerSecondsToSpeed(speed, toUnit) {
+        switch (toUnit) {
+            case 'm/s':
+            case 'mps':
+                return speed * 1
+            case 'km/h':
+            case 'kph':
+                return speed * 3.6
+            case 'mi/h':
+            case 'mph':
+                return speed * 2.2369362921
+            case 'kt':
+            case 'kn':
+                return speed * 1.9438444924
+            case 'ft/s':
+                return speed * 3.280839895
+            default:
+                console.warn(`Unknown speed conversion unit: ${toUnit}`)
+                return speed
         }
     },
     toHost() {

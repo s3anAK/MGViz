@@ -23,7 +23,6 @@ import Map_ from '../../../../src/essence/Basics/Map_/Map_'
 import Globe_ from '../../../../src/essence/Basics/Globe_/Globe_'
 import CursorInfo from '../../Ancillary/CursorInfo'
 import Formulae_ from '../../../../src/essence/Basics/Formulae_/Formulae_.js'
-import { mmgisAPI } from '../../../../src/essence/mmgisAPI/mmgisAPI.js'
 import Modal from '../../Ancillary/Modal'
 
 import './ChartTool.css'
@@ -127,7 +126,6 @@ var ChartTool = {
   calendarDisableDates: null,
   calendarEnabledDates: null,
   make: function () {
-    this.MMGISInterface = new interfaceWithMMGIS();
     tacls = L_.getToolVars('chart')['tacls'] ? L_.getToolVars('chart')['tacls'] : false;
     this.sse = tacls;
 
@@ -2436,7 +2434,6 @@ var ChartTool = {
     ToolController_.activeTool.site = '';
     ToolController_.activeTool.sites = [];
     ToolController_.activeTool.siteOptionsList = [];
-    this.MMGISInterface.separateFromMMGIS();
   },
   getUrlString: function () {
     return '';

@@ -20,13 +20,104 @@ var colorFilterExtension = {
     getTileUrl: function (coords) {
         let url = L.TileLayer.prototype.getTileUrl.call(this, coords)
 
+        if (
+            this.options.splitColonType === 'stac-collection' ||
+            this.options.splitColonType === 'COG'
+        ) {
+            let datetime
+            if (this.options.endtime != null) {
+                if (this.options.starttime != null) {
+                    datetime = `${this.options.starttime}/${this.options.endtime}`
+                } else {
+                    datetime = `../${this.options.endtime}`
+                }
+            }
+            if (datetime != null)
+                url += `${
+                    url.indexOf('?') === -1 ? '?' : '&'
+                }datetime=${datetime}`
+
+            if (this.options.splitColonType === 'stac-collection') {
+                url += `${
+                    url.indexOf('?') === -1 ? '?' : '&'
+                }exitwhenfull=false&skipcovered=false`
+            }
+
+            if (
+                this.options.cogTransform === true &&
+                this.options.cogMin != null &&
+                this.options.cogMax != null
+            ) {
+                url += `${url.indexOf('?') === -1 ? '?' : '&'}rescale=[${
+                    this.options.currentCogMin != null
+                        ? this.options.currentCogMin
+                        : this.options.cogMin
+                },${
+                    this.options.currentCogMax != null
+                        ? this.options.currentCogMax
+                        : this.options.cogMax
+                }]`
+                if (this.options.cogColormap != null) {
+                    url += `${
+                        url.indexOf('?') === -1 ? '?' : '&'
+                    }colormap_name=${this.options.cogColormap}`
+                }
+            }
+
+            if (mmgisglobal.options?.stac?.mosaicItemLimit != null) {
+                url += `${url.indexOf('?') === -1 ? '?' : '&'}items_limit=${
+                    mmgisglobal.options.stac.mosaicItemLimit
+                }`
+            }
+            if (mmgisglobal.options?.stac?.mosaicScanLimit != null) {
+                url += `${url.indexOf('?') === -1 ? '?' : '&'}scan_limit=${
+                    mmgisglobal.options.stac.mosaicScanLimit
+                }`
+            }
+            if (mmgisglobal.options?.stac?.mosaicTimeLimit != null) {
+                url += `${url.indexOf('?') === -1 ? '?' : '&'}time_limit=${
+                    mmgisglobal.options.stac.mosaicTimeLimit
+                }`
+            }
+        }
+
         url = url
             .replace(/{time}/g, this.options.time)
             .replace(/{starttime}/g, this.options.starttime)
             .replace(/{endtime}/g, this.options.endtime)
+
+        if (
+            this.options.customTimes?.times &&
+            this.options.customTimes?.times.length > 0
+        ) {
+            for (let i = 0; i < this.options.customTimes.times.length; i++) {
+                url = url.replace(
+                    new RegExp(`{customtime.${i}}`, 'g'),
+                    this.options.customTimes.times[i]
+                )
+            }
+        }
+
         if (this.options.time && this.options.tileFormat === 'tms') {
-            url += `?starttime=${this.options.starttime}&time=${this.options.endtime}`
-            if (this.options.compositeTile === true) url += `&composite=true`
+            let paramDelimiter = '?'
+            let urlParams = false
+            if (url.indexOf('?') !== -1) {
+                urlParams = new URLSearchParams(url.split('?')[1])
+                paramDelimiter = '&'
+            }
+
+            if (urlParams == false || !urlParams.has('starttime')) {
+                url += `${paramDelimiter}starttime=${this.options.starttime}`
+                paramDelimiter = '&'
+            }
+            if (urlParams == false || !urlParams.has('time')) {
+                url += `${paramDelimiter}time=${this.options.endtime}`
+                paramDelimiter = '&'
+            }
+            if (urlParams == false || !urlParams.has('composite')) {
+                if (this.options.compositeTile === true)
+                    url += `${paramDelimiter}composite=true`
+            }
         }
         return url
     },
@@ -111,15 +202,22 @@ var colorFilterExtension = {
         }
         img.src = url
     },
-    refresh: function () {
-        if (this._map == null) return
+    refresh: function (newUrl, force, updateOptions) {
+        if (updateOptions) {
+            Object.keys(updateOptions).forEach((o) => {
+                this.options[o] = updateOptions[o]
+            })
+        }
 
+        if (newUrl) this._url = newUrl
+        if (this._map == null) return
         for (let key in this._tiles) {
             const tile = this._tiles[key]
             if (tile.current && tile.active) {
                 const oldsrc = tile.el.src
                 const newsrc = this.getTileUrl(tile.coords)
-                if (oldsrc != newsrc) {
+
+                if (oldsrc != newsrc || force) {
                     //L.DomEvent.off(tile, 'load', this._tileOnLoad); ... this doesnt work!
                     this._refreshTileUrl(tile, newsrc)
                 }
@@ -171,15 +269,15 @@ var wmsExtension = {
         uppercase: true,
     },
 
-    initialize: function (url, options) {
+    initialize: function (url, options, wmsOptions) {
         this._url = url
 
         var wmsParams = L.extend({}, this.defaultWmsParams)
 
         // all keys that are not TileLayer options go to WMS params
-        for (var i in options) {
+        for (var i in wmsOptions) {
             if (!(i in this.extensionOptions)) {
-                wmsParams[i] = options[i]
+                wmsParams[i] = wmsOptions[i]
             }
         }
         options = L.setOptions(this, options)
@@ -227,6 +325,22 @@ var wmsExtension = {
                     .replace('{time}', this.options.time)
                     .replace('{starttime}', this.options.starttime)
                     .replace('{endtime}', this.options.endtime)
+
+                if (
+                    this.options.customTimes?.times &&
+                    this.options.customTimes.times.length > 0
+                ) {
+                    for (
+                        let i = 0;
+                        i < this.options.customTimes.times.length;
+                        i++
+                    ) {
+                        wmsParamsUpdate[key] = wmsParamsUpdate[key].replace(
+                            new RegExp(`{customtime.${i}}`, 'g'),
+                            this.options.customTimes.times[i]
+                        )
+                    }
+                }
             } else {
                 wmsParamsUpdate[key] = this.wmsParams[key]
             }
@@ -292,7 +406,11 @@ L.tileLayer.colorFilter = function (url, options) {
                 `WARNING: WMS layer has no "layers" parameter in the url - ${url}`
             )
 
-        return new L.TileLayer.WMSColorFilter(urlBaseString, wmsOptions)
+        return new L.TileLayer.WMSColorFilter(
+            urlBaseString,
+            options,
+            wmsOptions
+        )
     }
 
     url = url.replace(/{t}/g, '_time_')

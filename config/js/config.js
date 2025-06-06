@@ -1066,6 +1066,18 @@ function makeLayerBarAndModal(d, level, options) {
         xmlEl = "none"; bbEl = "none"; vtLayerEl = "none"; vtIdEl = "none"; vtKeyEl = "none"; vtLayerSetStylesEl = "none";
         timeEl = "block"; timeTypeEl = "block"; timeStartPropEl = "block"; timeEndPropEl = "block"; timeFormatEl = "block"; timeCompositeTileEl = "none"; timeRefreshEl = "none"; timeIncrementEl = "none"; shapeEl = "block";
       break;
+    case "velocity":
+        nameEl = "block"; kindEl = "block"; typeEl = "block"; urlEl = "block"; controlledEl = "block"; demtileurlEl = "none";  demparserEl = "none";
+        descriptionEl = "block"; tagsEl = "block"; legendEl = "block";
+        visEl = "block"; viscutEl = "block"; initOpacEl = "block"; togwheadEl = "none"; minzEl = "block"; layer3dEl = "block";
+        tileformatEl = "none";
+        modelLonEl = "none"; modelLatEl = "none"; modelElevEl = "none";
+        modelRotXEl = "none"; modelRotYEl = "none"; modelRotZEl = "none"; modelScaleEl = "none";
+        maxnzEl = "none"; maxzEl = "block"; strcolEl = "block"; filcolEl = "block";
+        weightEl = "block"; opacityEl = "block"; radiusEl = "block"; variableEl = "block";
+        xmlEl = "none"; bbEl = "none"; vtLayerEl = "none"; vtIdEl = "none"; vtKeyEl = "none"; vtLayerSetStylesEl = "none";
+        timeEl = "block"; timeTypeEl = "block"; timeStartPropEl = "block"; timeEndPropEl = "block"; timeFormatEl = "block"; timeCompositeTileEl = "none"; timeRefreshEl = "none"; timeIncrementEl = "none"; shapeEl = "block";
+      break;
     case "model":
         nameEl = "block"; kindEl = "none"; typeEl = "block"; urlEl = "block"; demtileurlEl = "none"; demparserEl = "none"; controlledEl = "none";
         descriptionEl = "block"; tagsEl = "block"; legendEl = "none";
@@ -1090,7 +1102,8 @@ function makeLayerBarAndModal(d, level, options) {
     dataSel = "",
     querySel = "",
     vectorSel = "",
-    modelSel = "";
+    modelSel = "",
+    velocitySel = "";
 
   switch (d.type) {
     case "header":
@@ -1120,6 +1133,10 @@ function makeLayerBarAndModal(d, level, options) {
     case "model":
       barColor = "rgb(189, 189, 15)";
       modelSel = "selected";
+      break;
+    case "velocity":
+      barColor = "rgb(11, 187, 222)";
+      velocitySel = "selected";
       break;
     default:
       console.warn(`Unknown layer type: ${d.type}`);
@@ -1376,6 +1393,7 @@ function makeLayerBarAndModal(d, level, options) {
                   "<option value='query' " + querySel + ">Query</option>" +
                   "<option value='vector' " + vectorSel + ">Vector</option>" +
                   "<option value='model' " + modelSel + ">Model</option>" +
+                  "<option value='velocity' " + velocitySel + ">Velocity</option>" +
                 "</optgroup>" +
               "</select>" +
               "<label>Layer Type</label>" +
@@ -1868,6 +1886,18 @@ function mmgisLinkModalsToLayersTypeChange(e) {
         timeEl = 'block'; timeTypeEl = 'block'; timeStartPropEl = 'block'; timeEndPropEl = 'block'; timeFormatEl = 'block'; timeCompositeTileEl = 'none'; timeRefreshEl = 'none'; timeIncrementEl = 'none';
         shapeEl = 'block'; queryEndpointEl = "none"; queryTypeEl = "none";
       break;
+    case "vector": barColor = "rgb(11, 187, 222)";
+        nameEl = "block"; kindEl = "block"; typeEl = "block"; urlEl = "block"; demtileurlEl = "none"; demparserEl = "none"; controlledEl = "block";
+        descriptionEl = "block"; tagsEl = "block"; legendEl = "block";
+        tileformatEl = "none"; visEl = "block"; viscutEl = "block"; initOpacEl = "block"; togwheadEl = "none"; minzEl = "block"; maxnzEl = "none"; layer3dEl = "block";
+        modelLonEl = "none"; modelLatEl = "none"; modelElevEl = "none";
+        modelRotXEl = "none"; modelRotYEl = "none"; modelRotZEl = "none"; modelScaleEl = "none";
+        maxzEl = "block"; strcolEl = "block"; filcolEl = "block"; weightEl = "block";
+        opacityEl = "block"; radiusEl = "block"; variableEl = "block";
+        xmlEl = "none"; bbEl = "none"; vtLayerEl = "none"; vtIdEl = "none"; vtKeyEl = "none"; vtLayerSetStylesEl = "none";
+        timeEl = 'block'; timeTypeEl = 'block'; timeStartPropEl = 'block'; timeEndPropEl = 'block'; timeFormatEl = 'block'; timeCompositeTileEl = 'none'; timeRefreshEl = 'none'; timeIncrementEl = 'none';
+        shapeEl = 'block'; queryEndpointEl = "none"; queryTypeEl = "none";
+      break;
     case "model": barColor = "rgb(189, 189, 15)";
         nameEl = "block"; kindEl = "none"; typeEl = "block"; urlEl = "block"; demtileurlEl = "none"; demparserEl = "none"; controlledEl = "none";
         descriptionEl = "block"; tagsEl = "block"; legendEl = "none";
@@ -2293,6 +2323,7 @@ function save(returnJSON) {
         var modalDescription = layerEditors["LayerDescription" + modalId]
           ? layerEditors["LayerDescription" + modalId].getValue() || ""
           : "";
+
         var modalTags = modal.find("#tagsEl input").val();
         var modalLegend = modal.find("#legendEl input").val();
         var modalTileFormat = modal
@@ -2373,6 +2404,9 @@ function save(returnJSON) {
         if (layerObject.uuid === "" || layerObject.uuid === "undefined")
           layerObject.uuid = null;
 
+        if (modalDescription != "undefined")
+          layerObject.description = modalDescription;
+
         if (
           modalType == "vectortile" ||
           modalType == "vector" ||
@@ -2395,8 +2429,6 @@ function save(returnJSON) {
             layerObject.controlled = modalControlledEl;
           if (modalType == "vector" && modalLayer3d != "undefined")
             layerObject.layer3dType = modalLayer3d;
-          if (modalDescription != "undefined")
-            layerObject.description = modalDescription;
           if (modalTags != "undefined" && modalTags != "")
             layerObject.tags = modalTags
               .replace(/ /g, "")
@@ -2794,9 +2826,50 @@ function layerPopulateVariable(modalId, layerType) {
         value: "Example",
       },
     ];
+    currentLayerVars.dynamicExtent = currentLayerVars.dynamicExtent || false;
+    currentLayerVars.dynamicExtentMoveThreshold =
+      currentLayerVars.dynamicExtentMoveThreshold || null;
     currentLayerVars.shortcutSuffix = currentLayerVars.shortcutSuffix || null;
 
     if (layerType == "tile") {
+      currentLayerVars.urlReplacements = currentLayerVars.urlReplacements
+        ? currentLayerVars.urlReplacements
+        : {
+            "name_of_{}_value_to_replace_in_url": {
+              on: "timeChange",
+              url: "url",
+              type: "GET || POST",
+              body: {
+                some_body: "{starttime} and {endtime} get filled",
+              },
+              return:
+                "value_in_response_to_replace_with.use.dot.notation.to.traverse.objects",
+            },
+          };
+      currentLayerVars.tools = currentLayerVars.tools
+        ? currentLayerVars.tools
+        : {
+            measure: {
+              layerDems: [
+                {
+                  name: "(str) example",
+                  url: "(str) path_to_data/data.tif (required)",
+                },
+              ],
+            },
+            identifier: {
+              data: [
+                {
+                  url: "(str) path_to_data/data.tif (required)",
+                  bands: "(int) how many bands to query from",
+                  sigfigs: "(int) how many digits after the decimal",
+                  unit: "(str) whatever string unit",
+                  timeFormat:
+                    "(str) for injecting '{starttime}' and '{endtime}' in url. See syntax in https://d3js.org/d3-time-format#locale_format",
+                },
+              ],
+            },
+          };
     } else if (layerType == "data") {
       currentLayerVars = currentLayerVars.shader
         ? { shader: currentLayerVars.shader }
@@ -2895,6 +2968,7 @@ function layerPopulateVariable(modalId, layerType) {
           },
           image: {
             initialVisibility: true,
+            initialOpacity: 1,
             path: "url to top-down ortho image. ex. public/images/rovers/PerseveranceTopDown.png",
             pathProp: "path to image. take priority over path",
             widthMeters: 2.6924,
@@ -2958,6 +3032,7 @@ function layerPopulateVariable(modalId, layerType) {
           which: "last",
           icon: "material design icon",
           value: "Prop: {prop}",
+          go: false,
         },
       ];
       currentLayerVars.markerIcon = currentLayerVars.markerIcon || {

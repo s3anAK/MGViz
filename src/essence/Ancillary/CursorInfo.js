@@ -12,6 +12,8 @@ var CursorInfo = {
     //The div that will follow the mouse around
     cursorInfoDiv: null,
     forcedPos: false,
+    _lockTimeout: null,
+    _locked: false,
     //Creates that div and adds the mousemove event so it follows the cursor
     init: function () {
         CursorInfo.cursorInfoDiv = d3
@@ -40,6 +42,9 @@ var CursorInfo = {
     },
     //Use jquery to fade in out then set display to none and clear inner html
     hide: function (immediate) {
+        if (CursorInfo._locked) {
+            return
+        }
         if (immediate) {
             CursorInfo.cursorInfoDiv.style('display', 'none').html('')
         } else {
@@ -58,14 +63,33 @@ var CursorInfo = {
         forceColor,
         forceFontColor,
         asHTML,
-        withBorder
+        withBorder,
+        withoutPadding,
+        lockMS
     ) {
+        if (CursorInfo._locked) {
+            return
+        }
+        if (lockMS != null && lockMS > 0) {
+            CursorInfo._locked = true
+            clearTimeout(CursorInfo._lockTimeout)
+            CursorInfo._lockTimeout = setTimeout(() => {
+                CursorInfo._locked = false
+            }, lockMS)
+        }
+
         if (position) {
             CursorInfo.forcedPos = true
             CursorInfo.cursorInfoDiv
                 .style('left', position.x + 'px')
                 .style('top', Math.max(40, position.y) + 'px')
         }
+        if (withoutPadding) {
+            CursorInfo.cursorInfoDiv.style('padding', 0)
+        } else {
+            CursorInfo.cursorInfoDiv.style('padding', '5px 9px 4px 9px')
+        }
+
         $('#cursorInfo').stop()
         CursorInfo.cursorInfoDiv.style('display', 'block').style('opacity', 1)
         CursorInfo.cursorInfoDiv

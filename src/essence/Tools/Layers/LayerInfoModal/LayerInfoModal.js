@@ -22,9 +22,6 @@ const LayerInfo = {
                 } Features)`
             } catch (e) {}
 
-        let title = 'Layer'
-        if (layer.type === 'header') title = 'Layer Group'
-
         let type = layer.type
         if (type === 'tile') type = 'raster'
 
@@ -37,7 +34,7 @@ const LayerInfo = {
                         `<div id='LayerInfoModalClose'><i class='mmgisHoverBlue mdi mdi-close mdi-18px'></i></div>`,
                     `</div>`,
                     `<div id='LayerInfoModalContent'>`,
-                        `<div id='LayerInfoModalInnerTitle'>${title}: ${layer.display_name}</div>`,
+                        `<div id='LayerInfoModalInnerTitle'>${layer.display_name}</div>`,
                         `<div id='LayerInfoModalInnerSubtitle'>${type}<span>${numberOfFeatures}</span></div>`,
 
                             layer.tags && layer.tags.length > 0 ? 
@@ -45,17 +42,19 @@ const LayerInfo = {
                                     `<div id='LayerInfoModalTags'>`,
                                         `<div id='LayerInfoModalTagsContent'>`,
                                             layer.tags.map((tag) => {
-                                                let catname, tagname
-                                                if( tag.indexOf(':') > -1)
-                                                    [catname, ...tagname] = tag.split(":");
-                                                else tagname = tag
+                                                if( typeof tag === 'string' && tag.length > 0) {
+                                                    let catname, tagname
+                                                    if( tag.indexOf(':') > -1)
+                                                        [catname, ...tagname] = tag.split(":");
+                                                    else tagname = tag
 
-                                                return [
-                                                    `<div class='LayerInfoModalTag'>`,
-                                                        catname != null ? `<div class='LayerInfoModalTagCat'>${catname}</div>` : '',
-                                                        `<div class='LayerInfoModalTagName'>${tagname}</div>`,
-                                                    `</div>`
-                                                ].join('\n')
+                                                    return [
+                                                        `<div class='LayerInfoModalTag'>`,
+                                                            catname != null ? `<div class='LayerInfoModalTagCat'>${catname}</div>` : '',
+                                                            `<div class='LayerInfoModalTagName'>${tagname}</div>`,
+                                                        `</div>`
+                                                    ].join('\n')
+                                                }
                                             }).join('\n'),
                                         `</div>`,
                                     `</div>`

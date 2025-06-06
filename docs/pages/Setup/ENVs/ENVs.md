@@ -3,6 +3,7 @@ layout: page
 title: ENVs
 permalink: /setup/envs
 parent: Setup
+nav_order: 2
 ---
 
 # Environment Variables
@@ -15,7 +16,7 @@ Environment variables are set within `MMGIS/.env`. A sample file `MMGIS/sample.e
 
 The kind of server running (apache is deprecated) | string enum | default `''`
 
-- _node:_ A node express server running NodeJS > 10.10
+- _node:_ A node express server running NodeJS v20.11.1+
 - _apache (deprecated):_ Served through Apache. Some or all functionality may not work
 
 #### `AUTH=`
@@ -58,15 +59,51 @@ User of Postgres database | string | default `null`
 
 Password of Postgres database | string | default `null`
 
-#### `CSSO_GROUPS=`
-
-A list of CSSO LDAP groups that have access | string[] | default `[]`
-
 ## Optional Variables
 
 #### `PORT=`
 
-Port to run on | positive integer | default `3000`
+Port to run on | positive integer | default `8888`
+
+#### `HTTPS=`
+
+If true, MMGIS will use an https server with the, now required, `HTTPS_KEY` and `HTTPS_CERT` envs. If false, use a wrapping https proxy server instead and block `PORT` from being public | boolean | false
+
+#### `HTTPS_KEY=`
+
+Relative path to key. If using docker, make sure the key is mounted. Everything under './ssl/' is gitignored and './ssl/' is mounted into docker.
+
+#### `HTTPS_CERT=`
+
+Relative path to cert. If using docker, make sure the cert is mounted. Everything under './ssl/' is gitignored and './ssl/' is mounted into docker.
+
+#### `DB_POOL_MAX=`
+
+Max number connections in the database's pool. CPUs \* 4 is a good number | integer | default `10`
+
+#### `DB_POOL_TIMEOUT=`
+
+How many milliseconds until a DB connection times out | integer | default `30000` (30 sec)
+
+#### `DB_POOL_IDLE=`
+
+How many milliseconds for an incoming connection to wait for a DB connection before getting kicked away | integer | default `10000` (10 sec)
+
+#### `DB_SSL=`
+
+If the Postgres DB instance is enforcing SSL, set to true to have MMGIS connect to it via SSL | boolean | default `false`
+
+#### `DB_SSL_CERT=`
+
+If `DB_SSL=true` and if needed, the path to a certificate for ssl | string | default `null`
+
+#### `DB_SSL_CERT_BASE64=`
+
+Alternatively, if `DB_SSL=true` and if needed, a base64 encoded certificate for ssl. `DB_SSL_CERT_BASE64` will take priority over `DB_SSL_CERT` | string | default `null`
+
+#### `CSSO_GROUPS=`
+
+A list of CSSO LDAP groups that have access | string[] | default `[]`
 
 #### `VERBOSE_LOGGING=`
 
@@ -86,7 +123,11 @@ Sets "SameSite=None; Secure" on the login cookie. Useful when using AUTH=local a
 
 #### `ROOT_PATH=`
 
-Set MMGIS to be deployed under a subpath. For example if serving at the subpath 'https://{domain}/path/where/I/serve/mmgis' is desired, set `ROOT_PATH=/path/where/I/serve/mmgis`. If no subpath, leave blank. | string | default `""`
+Set MMGIS to be deployed under a subpath. For example if serving at the subpath 'https://{domain}/path/where/I/serve/mmgis' is desired, set `ROOT_PATH=/path/where/I/serve/mmgis`. Should always begin with a `/`. If no subpath, leave blank. | string | default `""`
+
+#### `EXTERNAL_ROOT_PATH=`
+
+Tell MMGIS that it's already deployed under a subpath. For example if already proxying to the subpath 'https://{domain}/path/where/I/serve/mmgis' is desired, set `ROOT_PATH=/path/where/I/serve/mmgis`. This differs from ROOT_PATH in that MMGIS will not place any of it's endpoints under this path but will still query as if it did. Should always begin with a `/`. If `ROOT_PATH` is also set, requests will use `EXTERNAL_ROOT_PATH` + `ROOT_PATH`. If no external subpath, leave blank. | string | default `""`
 
 #### `WEBSOCKET_ROOT_PATH=`
 
@@ -95,6 +136,14 @@ Overrides ROOT_PATH's use when the client connects via websocket. Websocket url:
 #### `CLEARANCE_NUMBER=`
 
 Sets a clearance for the website | string | default `CL##-####`
+
+#### `LINK_PREVIEW_TITLE=`
+
+Initial HTML page title. When sharing a link to MMGIS in an application that supports link previews, the title to be used | string | default `MMGIS`
+
+#### `LINK_PREVIEW_DESCRIPTION=`
+
+Initial HTML page description. When sharing a link to MMGIS in an application that supports link previews, the description to be used | string | default `A web-based mapping and localization solution for science operation on planetary missions.`
 
 #### `DISABLE_LINK_SHORTENER=`
 
@@ -135,3 +184,67 @@ If the new MAIN_MISSION ENV is set to a valid mission, skip the landing page and
 #### `SKIP_CLIENT_INITIAL_LOGIN=`
 
 If true, MMGIS will not auto-login returning users. This can be useful when login is managed someplace else. The initial login process can be manually triggered with `mmgisAPI.initialLogin()` | boolean | default `false`
+
+#### `GENERATE_SOURCEMAP=`
+
+If true at build-time, JavaScript source maps will also be built | boolean | default `false`
+
+#### `SPICE_SCHEDULED_KERNEL_DOWNLOAD=`
+
+If true, then at every other midnight, MMGIS will read /Missions/spice-kernels-conf.json and re/download all the specified kernels. See /Missions/spice-kernels-conf.example.json | boolean | default `false`
+
+#### `SPICE_SCHEDULED_KERNEL_DOWNLOAD_ON_START=`
+
+If true, then also triggers the kernel download when MMGIS starts | boolean | default `false`
+
+#### `SPICE_SCHEDULED_KERNEL_CRON_EXPR=`
+
+A cron schedule expression for use in the [node-schedule npm library](https://www.npmjs.com/package/node-schedule) | string | default `"0 0 */2 * *"` (every other day)
+
+#### `COMPOSITE_TILE_DIR_STORE_MAX_AGE_MS=`
+
+When using composited time tiles, MMGIS queries the tileset's folder for existing time folders. It caches the results of the these folder listings every COMPOSITE_TILE_DIR_STORE_MAX_AGE_MS milliseconds. Defaults to requerying every 30 minutes. If 0, no caching. If null or NaN, uses default. | number | default `1800000`
+
+## Adjacent Servers
+
+Enables and proxies to other self-hosted services. [Additional setup](/MMGIS/setup/adjacent-servers) may be required.
+
+#### `WITH_STAC=`
+
+STAC Catalogs - https://github.com/stac-utils/stac-fastapi-pgstac | default `false`
+
+#### `STAC_PORT=`
+
+Port to proxy stac on | default `8881`
+
+#### `WITH_TIPG=`
+
+TiTiler PG Vectors - https://github.com/developmentseed/tipg | default `false`
+
+#### `TIPG_PORT=`
+
+Port to ruproxyn tipg on | default `8882`
+
+#### `WITH_TITILER=`
+
+TiTiler - https://developmentseed.org/titiler | default `false`
+
+#### `TITILER_PORT=`
+
+Port to proxy titiler on | default `8883`
+
+#### `WITH_TITILER_PGSTAC=`
+
+TiTiler Mosaicking - https://github.com/stac-utils/titiler-pgstac | default `false`
+
+#### `TITILER_PGSTAC_PORT=`
+
+Port to proxy titiler-pgstac on | default `8884`
+
+#### `WITH_VELOSERVER=`
+
+Veloserver - Velocity and Wind Data Visualization Server - https://github.com/NASA-AMMOS/Veloserver | default `false`
+
+#### `VELOSERVER_PORT=`
+
+Port to proxy veloserver on | default `8104`

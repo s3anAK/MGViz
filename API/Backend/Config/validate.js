@@ -78,13 +78,22 @@ const validateLayers = (config) => {
       case "vector":
         // Check url
         if (layer.controlled !== true) errs = errs.concat(isValidUrl(layer));
-
+        break;
+      case "velocity":
+        // Check url
+        if (layer.controlled !== true) errs = errs.concat(isValidUrl(layer));
         break;
       case "model":
         // Check url
         errs = errs.concat(isValidUrl(layer));
         // Check model params (pos, rot, scale)
         errs = errs.concat(isValidModelParams(layer));
+        break;
+      case "image":
+        // Check url
+        errs = errs.concat(isValidUrl(layer));
+        // Check zooms
+        errs = errs.concat(isValidZooms(layer));
         break;
       default:
         errs = errs.concat(
@@ -116,24 +125,8 @@ const isValidLayerName = (name) => {
     errs.push(
       err("Found a layer with name: undefined", ["layers[layer].name"])
     );
-  if (!validCSSName(name))
-    errs.push(
-      err(
-        `Layer: '${name}' must not be empty, a non-string, contain symbols or begin with numbers.`,
-        ["layers[layer].name"]
-      )
-    );
 
   return errs;
-
-  function validCSSName(name) {
-    if (name == null || typeof name !== "string") return false;
-
-    const match = name.match(/[_A-Z ]+[_A-Z0-9- ]+/gi);
-    if (match && match[0].length === name.length) return true;
-
-    return false;
-  }
 };
 
 const isValidUrl = (layer) => {
@@ -326,6 +319,10 @@ const fillInMissingFieldsWithDefaults = (layer) => {
       layer.style.className = layer.name.replace(/ /g, "").toLowerCase();
       break;
     case "vector":
+      layer.style = layer.style || {};
+      layer.style.className = layer.name.replace(/ /g, "").toLowerCase();
+      break;
+    case "image":
       layer.style = layer.style || {};
       layer.style.className = layer.name.replace(/ /g, "").toLowerCase();
       break;

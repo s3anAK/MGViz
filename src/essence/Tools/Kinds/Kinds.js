@@ -17,6 +17,7 @@ var Kinds = {
         lastFeatureLayers
     ) {
         L_.setActiveFeature(layer)
+
         if (typeof kind !== 'string') return
 
         let layerVar = {}
@@ -33,7 +34,15 @@ var Kinds = {
                 break
             case 'waypoint':
                 // Add image overlay
-                if (F_.getIn(layerVar, 'markerAttachments.image', false)) {
+                const imageVar = F_.getIn(
+                    layerVar,
+                    'markerAttachments.image',
+                    false
+                )
+                if (
+                    imageVar &&
+                    (imageVar.enabled === true || imageVar.enabled == null)
+                ) {
                     const path = F_.getIn(
                         layerVar,
                         'markerAttachments.image.path',
@@ -154,7 +163,15 @@ var Kinds = {
                 }
 
                 // Add model to globe
-                if (F_.getIn(layerVar, 'markerAttachments.model', false)) {
+                const modelVar = F_.getIn(
+                    layerVar,
+                    'markerAttachments.model',
+                    false
+                )
+                if (
+                    modelVar &&
+                    (modelVar.enabled === true || modelVar.enabled == null)
+                ) {
                     const path = F_.getIn(
                         layerVar,
                         'markerAttachments.model.path',

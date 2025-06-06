@@ -42,7 +42,8 @@
 
 .drawToolButton1 {
     background: #067ca7;
-    padding: 3px 8px;
+    padding: 5px 8px 2px 8px;
+    border-radius: 2px;
     margin: 5px 0px;
     text-align: center;
     color: #ededed;
@@ -132,7 +133,7 @@
 #drawToolDrawingSettingsToggle {
     color: #aaa;
     width: 46px;
-    padding-top: 7px;
+    padding-top: 5px;
     text-align: center;
     cursor: pointer;
     transition: color 0.2s cubic-bezier(0.39, 0.575, 0.565, 1),
@@ -309,7 +310,6 @@
     padding: 0px 4px;
     height: 30px;
 }
-
 
 #drawToolDrawFilterDiv {
     background: var(--color-b);
@@ -2373,7 +2373,33 @@
 .drawToolContextMenuPropertiesTitle {
     height: 30px;
     line-height: 30px;
-    color: var(--color-query);
+    color: #91c676;
+}
+.drawToolContextMenuPropertiesRecomputeTemplate {
+    margin-top: -1px;
+    display: flex;
+    cursor: pointer;
+}
+.drawToolContextMenuPropertiesRecomputeTemplate > div {
+    background: var(--color-a-1);
+    border: 1px solid var(--color-a-5);
+    color: var(--color-a6);
+    border-radius: 3px;
+    padding: 4px 8px 3px 4px;
+    margin-bottom: 6px;
+    display: flex;
+    transition: all 0.2s ease-out;
+}
+.drawToolContextMenuPropertiesRecomputeTemplate > div > i {
+margin-right: 4px;
+}
+.drawToolContextMenuPropertiesRecomputeTemplate > div > div {
+font-size: 12px;
+line-height: 20px;
+}
+.drawToolContextMenuPropertiesRecomputeTemplate > div:hover {
+    color: white;
+    background: var(--color-a2);
 }
 .drawToolContextMenuPropertiesExtended {
     margin-bottom: 12px;
@@ -2467,7 +2493,6 @@
 #cmExportGo:hover {
     background-color: var(--color-a1-5);
 }
-
 
 /*FILE INFO TEMPLATE MODAL*/
 #drawToolFileTemplateEditModal {
@@ -2564,7 +2589,7 @@
     line-height: 18px;
     padding: 3px 3px;
     font-size: 13px;
-    box-shadow: 0px 4px 3px 0px rgba(0,0,0,0.2);
+    box-shadow: 0px 4px 3px 0px rgba(0, 0, 0, 0.2);
 }
 #DrawTool_TimeToggle > div:first-child {
     padding: 0px 6px 0px 5px;

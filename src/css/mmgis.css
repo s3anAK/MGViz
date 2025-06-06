@@ -117,13 +117,16 @@ body {
     --color-p8: #11495c;
     --color-p9: #75351e; /*#5708ea;*/
     --color-p10: #78b1c2;
+    --color-p11: #b0518f;
 
-    --color-vector: var(--color-c2);
-    --color-tile: var(--color-p9);
-    --color-vectortile: var(--color-p10);
-    --color-query: var(--color-p3);
-    --color-data: var(--color-p4);
-    --color-model: var(--color-p0);
+    --color-vector: #245980;
+    --color-tile: #67401d;
+    --color-vectortile: #0792c5;
+    --color-query: #4c8b2d;
+    --color-data: #c43541;
+    --color-model: #a98732;
+    --color-velocity: #24807c;
+    --color-image: #b0518f;
 }
 
 #nodeenv {
@@ -306,6 +309,14 @@ body {
 .toolButton:hover {
     background: var(--color-a1-5) !important;
 }
+
+.toolButtonSep.active {
+    color: var(--color-c) !important;
+    border-bottom: 2px solid var(--color-c);
+}
+.toolButtonSep#toolButtonSeparated_Legend.active {
+    border-bottom: none !important;
+}
 .toolButtonSep:hover {
     color: var(--color-c) !important;
 }
@@ -387,6 +398,10 @@ body {
 }
 .noPointerEventsImportant {
     pointer-events: none !important;
+}
+
+.velocity-overlay {
+    transition: opacity 0.2s ease-in;
 }
 
 @media screen and (max-width: 600px) {
@@ -983,4 +998,26 @@ mark {
     div:not(.no-highlight).active {
     background: var(--color-c2) !important;
     border-radius: 0px;
+}
+
+#mainDescPointLinks ul {
+    width: fit-content;
+}
+#mainDescPointLinks .dropy__title {
+    height: 30px;
+    border: none;
+    margin-left: 9px;
+    width: 60px;
+    background: var(--color-a1);
+}
+#mainDescPointLinks .dropy__title > span {
+    padding-top: 2px;
+}
+#mainDescPointLinks .dropy__title > i {
+    line-height: 15px;
+}
+
+#mainDescPointLinks_global .dropy__content li a {
+    padding: 0.425rem 1.0375em;
+    height: 30px;
 }

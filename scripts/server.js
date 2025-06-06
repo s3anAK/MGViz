@@ -2,6 +2,7 @@ require("dotenv").config();
 
 const fs = require("fs");
 const http = require("http");
+const https = require("https");
 const { Pool } = require("pg");
 var path = require("path");
 const packagejson = require("../package.json");
@@ -9,7 +10,7 @@ var bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const express = require("express");
 var swaggerUi = require("swagger-ui-express");
-var swaggerDocumentMain = require("../documentation/pages/swaggers/swaggerMain.json");
+var swaggerDocumentMain = require("../docs/mmgis-openapi.json");
 var exec = require("child_process").exec;
 var execFile = require("child_process").execFile;
 const createError = require("http-errors");
@@ -20,9 +21,9 @@ const compression = require("compression");
 
 const session = require("express-session");
 
-const apiRouter = require("../API/Backend/APIs/routes/apis");
-
 const testEnv = require("../API/testEnv");
+
+const utils = require("../API/utils");
 
 const { sequelize } = require("../API/connection");
 
@@ -31,6 +32,11 @@ const setups = require("../API/setups");
 const { updateTools } = require("../API/updateTools");
 
 const { websocket } = require("../API/websocket");
+
+const { setSPICEKernelDownloadSchedule } = require("../spice/getKernels");
+
+const initAdjacentServersProxy = require("../adjacent-servers/adjacent-servers-proxy");
+const adjacentServers = require("../adjacent-servers/adjacent-servers");
 
 const WebSocket = require("isomorphic-ws");
 
@@ -70,11 +76,10 @@ const rootDir = `${__dirname}/..`;
 ///////////////////////////
 const app = express();
 
+const isDocker = utils.isDocker();
+process.env.IS_DOCKER = isDocker ? "true" : "false";
+
 const apilimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 20000, // limit each IP to 100 requests per windowMs
-});
-const APIlimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
   max: 20000, // limit each IP to 100 requests per windowMs
 });
@@ -103,6 +108,23 @@ const pool = new Pool({
   database: process.env.DB_NAME,
   password: process.env.DB_PASS,
   port: process.env.DB_PORT || "5432",
+  ssl:
+    process.env.DB_SSL === "true"
+      ? {
+          require: true,
+          rejectUnauthorized: true,
+          ca:
+            process.env.DB_SSL_CERT_BASE64 != null &&
+            process.env.DB_SSL_CERT_BASE64 !== ""
+              ? Buffer.from(process.env.DB_SSL_CERT_BASE64, "base64").toString(
+                  "utf-8"
+                )
+              : process.env.DB_SSL_CERT != null &&
+                process.env.DB_SSL_CERT !== ""
+              ? fs.readFileSync(process.env.DB_SSL_CERT)
+              : false,
+        }
+      : false,
 });
 app.use(
   session({
@@ -117,6 +139,14 @@ app.use(
     }),
   })
 );
+
+if (process.env.SPICE_SCHEDULED_KERNEL_DOWNLOAD === "true")
+  setSPICEKernelDownloadSchedule(
+    process.env.SPICE_SCHEDULED_KERNEL_DOWNLOAD_ON_START,
+    process.env.SPICE_SCHEDULED_KERNEL_CRON_EXPR
+  );
+
+///
 
 ///////////////////////////
 
@@ -165,20 +195,7 @@ function setContentType(req, res, next) {
 }
 
 function checkHeadersCodeInjection(req, res, next) {
-  let injectionWords = [
-    "pass",
-    "pw",
-    "password",
-    "delete",
-    "insert",
-    "select",
-    "disable",
-    "enable",
-    "drop",
-    "set",
-    "script",
-    "<script>",
-  ];
+  let injectionWords = ["<script>"];
 
   let code_injected = false;
 
@@ -278,7 +295,7 @@ function ensureGroup(allowedGroups) {
   };
 }
 
-function ensureAdmin(toLoginPage, denyLongTermTokens) {
+function ensureAdmin(toLoginPage, denyLongTermTokens, allowGets, disallow) {
   return (req, res, next) => {
     let url = req.originalUrl.split("?")[0].toLowerCase();
     const remoteAddress =
@@ -287,14 +304,34 @@ function ensureAdmin(toLoginPage, denyLongTermTokens) {
     if (
       url.endsWith("/api/configure/get") ||
       url.endsWith("/api/configure/missions") ||
+      url.endsWith("/api/configure/getgeneraloptions") ||
       url.endsWith("/api/geodatasets/get") ||
+      url.endsWith("/api/geodatasets/intersect") ||
+      url.endsWith("/api/geodatasets/aggregations") ||
       url.endsWith("/api/geodatasets/search") ||
       url.endsWith("/api/datasets/get") ||
       req.session.permission === "111"
-    )
+    ) {
       next();
-    else if (toLoginPage) res.render("adminlogin", { user: req.user });
-    else if (!denyLongTermTokens && req.headers.authorization) {
+      return;
+    }
+
+    if (allowGets === true && req.method === "GET") {
+      if (
+        disallow == null ||
+        disallow.filter((path) => url.endsWith(path)).length == 0
+      ) {
+        next();
+        return;
+      }
+    }
+
+    if (toLoginPage) {
+      res.render("adminlogin", { user: req.user });
+      return;
+    }
+
+    if (!denyLongTermTokens && req.headers.authorization) {
       validateLongTermToken(
         req.headers.authorization,
         () => {
@@ -311,15 +348,16 @@ function ensureAdmin(toLoginPage, denyLongTermTokens) {
           );
         }
       );
-    } else {
-      res.send({ status: "failure", message: "Unauthorized!" });
-      logger(
-        "warn",
-        `Unauthorized call made and rejected (from ${remoteAddress})`,
-        req.originalUrl,
-        req
-      );
+      return;
     }
+
+    res.send({ status: "failure", message: "Unauthorized!" });
+    logger(
+      "warn",
+      `Unauthorized call made and rejected (from ${remoteAddress})`,
+      req.originalUrl,
+      req
+    );
     return;
   };
 }
@@ -394,14 +432,19 @@ function ensureUser() {
 }
 
 var swaggerOptions = {
-  customCssUrl: "/documentation/pages/swaggers/swaggerCSS.css",
-  customJs: "/documentation/pages/swaggers/swaggerJS.js",
+  customCssUrl: "/docs/swagger/swaggerCSS.css",
+  customJs: "/docs/swagger/swaggerJS.js",
 };
 
 const useSwaggerSchema =
   (schema) =>
   (...args) =>
     swaggerUi.setup(schema, swaggerOptions)(...args);
+
+///
+adjacentServers();
+initAdjacentServersProxy(app, isDocker, ensureAdmin);
+//
 
 let s = {
   app: app,
@@ -422,7 +465,6 @@ let s = {
 app.set("trust proxy", 1);
 
 app.use("/api/", apilimiter);
-app.use("/API/", APIlimiter);
 
 // gzip!!
 app.use(compression({ filter: shouldCompress }));
@@ -469,7 +511,7 @@ app.disable("x-powered-by");
 app.disable("Origin");
 
 app.use(
-  `${ROOT_PATH}/api/docs/main`,
+  `${ROOT_PATH}/api/docs`,
   swaggerUi.serve,
   useSwaggerSchema(swaggerDocumentMain)
 );
@@ -491,21 +533,6 @@ app.use(cookieParser());
 
 app.use(cors());
 // app.set('Origin', false);
-
-// catch 404 and forward to error handler
-app.use(function (req, res, next) {
-  next(); //next(createError(404))
-});
-
-// error handler
-app.use(function (err, req, res, next) {
-  // set locals, only providing error in development
-  res.locals.message = err.message;
-  res.locals.error = req.app.get("env") === "development" ? err : {};
-  // render the error page
-  res.status(err.status || 500);
-  res.render("error");
-});
 
 /*Require all dynamic backend setup scripts
 and return functions that bulk run their functions
@@ -542,12 +569,9 @@ setups.getBackendSetups(function (setups) {
     express.static(path.join(rootDir, "/build"))
   );
   app.use(
-    `${ROOT_PATH}/documentation`,
-    express.static(path.join(rootDir, "/documentation"))
-  );
-  app.use(
-    `${ROOT_PATH}/docs/helps`,
-    express.static(path.join(rootDir, "/docs/helps"))
+    `${ROOT_PATH}/docs`,
+    ensureUser(),
+    express.static(path.join(rootDir, "/docs"))
   );
   app.use(
     `${ROOT_PATH}/README.md`,
@@ -576,6 +600,16 @@ setups.getBackendSetups(function (setups) {
     `${ROOT_PATH}/config/fonts`,
     ensureUser(),
     express.static(path.join(rootDir, "/config/fonts"))
+  );
+  app.use(
+    `${ROOT_PATH}/configure/build`,
+    ensureUser(),
+    express.static(path.join(rootDir, "/configure/build"))
+  );
+  app.use(
+    `${ROOT_PATH}/configure/public`,
+    ensureUser(),
+    express.static(path.join(rootDir, "/configure/public"))
   );
 
   if (process.argv.includes("--with_examples"))
@@ -923,7 +957,16 @@ setups.getBackendSetups(function (setups) {
   //////Setups Init//////
   setups.init(s);
 
-  const httpServer = http.createServer(app);
+  let httpServer;
+  if (process.env.HTTPS == "true") {
+    httpServer = https.createServer(
+      {
+        key: fs.readFileSync(process.env.HTTPS_KEY),
+        cert: fs.readFileSync(process.env.HTTPS_CERT),
+      },
+      app
+    );
+  } else httpServer = http.createServer(app);
 
   // Start listening for requests.
   httpServer.listen(port, (err) => {
@@ -959,8 +1002,13 @@ setups.getBackendSetups(function (setups) {
             VERSION: packagejson.version,
             FORCE_CONFIG_PATH: process.env.FORCE_CONFIG_PATH,
             CLEARANCE_NUMBER: process.env.CLEARANCE_NUMBER,
+            LINK_PREVIEW_TITLE: process.env.LINK_PREVIEW_TITLE || "MMGIS",
+            LINK_PREVIEW_DESCRIPTION:
+              process.env.LINK_PREVIEW_DESCRIPTION ||
+              "A web-based mapping and localization solution for science operation on planetary missions.",
             ENABLE_MMGIS_WEBSOCKETS: process.env.ENABLE_MMGIS_WEBSOCKETS,
             MAIN_MISSION: process.env.MAIN_MISSION,
+            IS_DOCKER: process.env.IS_DOCKER,
             SKIP_CLIENT_INITIAL_LOGIN: process.env.SKIP_CLIENT_INITIAL_LOGIN,
             THIRD_PARTY_COOKIES: process.env.THIRD_PARTY_COOKIES,
             PORT: process.env.PORT,
@@ -980,6 +1028,12 @@ setups.getBackendSetups(function (setups) {
 
     //////Setups Started//////
     setups.started(s);
+
+    // error handler
+    app.all("*", (req, res, next) => {
+      // render the error page
+      res.status(404).render("error");
+    });
 
     logger(
       "success",
@@ -1059,7 +1113,6 @@ function setupDevServer() {
       );
       console.log();
     }
-
     console.log(chalk.cyan("Starting the development server...\n"));
   });
 

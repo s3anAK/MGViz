@@ -3,6 +3,7 @@ import $ from 'jquery'
 import * as d3 from 'd3'
 import QueryURL from '../Ancillary/QueryURL'
 import calls from '../../pre/calls'
+import { mmgisAPI_ } from '../mmgisAPI/mmgisAPI'
 import attributions from '../../external/attributions'
 
 import './LandingPage.css'
@@ -13,6 +14,16 @@ export default {
             makeMissionNotFoundDiv()
             return
         }
+
+        // Skip loading the landing page if the preview mode is controlling the config
+        if (QueryURL.getSingleQueryVariable('_preview')) {
+            if (typeof mmgisAPI_.onLoadCallback === 'function') {
+                mmgisAPI_.onLoadCallback()
+                mmgisAPI_.onLoadCallback = null
+            }
+            return
+        }
+
         var missionUrl
         var forceLanding =
             QueryURL.getSingleQueryVariable('forcelanding') || false
@@ -362,7 +373,7 @@ export const makeMissionNotFoundDiv = () => {
         .style('background', '#efefef')
         .style('color', '#757575')
         .style('opacity', 0)
-        .style('cursor', 'default')
+        .style('cursor', 'pointer')
         .style('z-index', 1000)
         .on('click', function () {
             document.location.href = window.location.href.split('?')[0]
@@ -380,6 +391,19 @@ export const makeMissionNotFoundDiv = () => {
         .style('left', '50%')
         .style('transform', 'translateX(-50%)')
         .text(window.mmgisglobal.name || 'MMGIS')
+
+    notfounddiv
+        .append('p')
+        .attr('id', 'returnmmgis')
+        .style('font-family', 'lato')
+        .style('font-size', '14px')
+        .style('margin', '125px 0 90px 0')
+        .style('text-align', 'center')
+        .style('position', 'absolute')
+        .style('top', '50%')
+        .style('left', '50%')
+        .style('transform', 'translateX(-50%)')
+        .text('Click anywhere to return home...')
 
     notfounddiv
         .append('div')

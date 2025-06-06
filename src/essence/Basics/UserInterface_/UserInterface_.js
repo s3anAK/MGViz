@@ -71,9 +71,9 @@ var UserInterface = {
                         "</div>",
                     "</div>",
                     "<div id='topBarSecondary'>",
-                        "<div class='mainInfo' title='Go to featured item'>",
-                        "</div>",
                         "<div class='mainDescription' title='Go to active item'>",
+                        "</div>",
+                        "<div class='mainInfo' title='Go to featured item'>",
                         "</div>",
                     "</div>",
                 "</div>",
@@ -337,7 +337,8 @@ var UserInterface = {
             .attr('id', 'mapSplitInnerLeft')
             .attr('tabindex', 500)
             .attr('class', 'mdi mdi-chevron-double-left mdi-24px')
-            .style('margin-right', '9px')
+            .style('position', 'absolute')
+            .style('left', '-28px')
             .on('click touchstart', function () {
                 var pp = UserInterface.getPanelPercents()
                 if (pp.map == 0) {
@@ -365,7 +366,8 @@ var UserInterface = {
             .attr('id', 'mapSplitInnerRight')
             .attr('tabindex', 501)
             .attr('class', 'mdi mdi-chevron-double-right mdi-24px')
-            .style('margin-left', '9px')
+            .style('position', 'absolute')
+            .style('right', '-29px')
             .on('click touchstart', function () {
                 var pp = UserInterface.getPanelPercents()
                 if (pp.map == 0) {
@@ -451,7 +453,8 @@ var UserInterface = {
             .attr('id', 'globeSplitInnerLeft')
             .attr('tabindex', 502)
             .attr('class', 'mdi mdi-chevron-double-left mdi-24px')
-            .style('margin-right', '8px')
+            .style('position', 'absolute')
+            .style('left', '-27px')
             .on('click touchstart', function () {
                 var pp = UserInterface.getPanelPercents()
                 if (pp.map == 0) {
@@ -483,7 +486,8 @@ var UserInterface = {
             .attr('id', 'globeSplitInnerRight')
             .attr('tabindex', 503)
             .attr('class', 'mdi mdi-chevron-double-right mdi-24px')
-            .style('margin-left', '8px')
+            .style('position', 'absolute')
+            .style('right', '-28px')
             .on('click touchstart', function () {
                 var pp = UserInterface.getPanelPercents()
                 if (pp.map == 0) {
@@ -614,6 +618,26 @@ var UserInterface = {
 </svg>`
             )
             .on('click', F_.toHostForceLanding)
+
+        this.dataLoadingSpinner = d3
+            .select('#main-container')
+            .append('div')
+            .attr('id', 'dataLoadingSpinner')
+            .style('opacity', 0)
+            .style('transition', 'opacity 0.3s ease-in-out')
+            .style('pointer-events', 'none')
+            .style('width', '40px')
+            .style('height', '40px')
+            .style('background', 'var(--color-a)')
+            .style('position', 'absolute')
+            .style('top', '0px')
+            .style('left', '0px')
+            .style('z-index', '2005')
+            .append('div')
+            .attr('class', 'mmgis-spinner2')
+            .style('position', 'absolute')
+            .style('top', '6px')
+            .style('left', '6px')
 
         //ViewerSplit is immovable
         //$( '#viewerSplit' ).mousedown( viewerSplitOnMouseDown );

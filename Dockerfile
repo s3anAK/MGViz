@@ -1,31 +1,66 @@
-FROM node:16
+FROM oraclelinux:8.9
 
 ARG PUBLIC_URL_ARG=
 ENV PUBLIC_URL=$PUBLIC_URL_ARG
 
-# Install GDAL with Python bindings
-RUN apt-get -y update
-RUN apt-get install -y gdal-bin libgdal-dev python3-pip python3-gdal
-
-# Use Python3 for python
-RUN rm /usr/bin/python && ln -s /usr/bin/python3 /usr/bin/python
-
 # Create app directory
 WORKDIR /usr/src/app
-
-# Install app dependencies
-COPY python-requirements.txt ./
-RUN python -m pip install --upgrade pip && python -m pip install -r ./python-requirements.txt
-
-COPY package*.json ./
-RUN npm install
-
 
 # Bundle app source
 COPY . .
 
+
+#############################
+# Python
+#############################
+
+# micromamba
+RUN dnf install -y bzip2
+RUN mkdir -p /opt/micromamba/bin
+RUN curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -C /opt/micromamba -xvj bin/micromamba
+RUN MAMBA_ROOT_PREFIX="/opt/micromamba"; /opt/micromamba/bin/micromamba shell init -s bash
+RUN echo 'export PATH="/opt/micromamba/bin:$PATH"' >> /root/.bashrc && echo 'export MAMBA_ROOT_PREFIX="/opt/micromamba"' >> /root/.bashrc
+
+RUN source ~/.bashrc && micromamba env create -y --name mmgis --file=python-environment.yml
+
+#############################
+# Node
+#############################
+
+RUN dnf module install nodejs:20
+
+
+#############################
+# MMGIS
+#############################
+
+RUN npm install
+
 # build
 RUN npm run build
 
+
+#############################
+# MMGIS Configure
+#############################
+
+WORKDIR /usr/src/app/configure
+
+# Clean out configure build folder
+RUN rm -rf /usr/src/app/configure/build/*
+
+RUN npm install
+
+# Build Configure Site
+RUN npm run build
+
+##
+
+WORKDIR /usr/src/app/
+
+# 
+
+RUN chmod 755 _docker-entrypoint.sh
+
 EXPOSE 8888
-CMD [ "npm", "run", "start:prod" ]
+CMD [ "./_docker-entrypoint.sh" ]

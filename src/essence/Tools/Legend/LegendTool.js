@@ -2,6 +2,7 @@ import $ from 'jquery'
 import * as d3 from 'd3'
 import L_ from '../../Basics/Layers_/Layers_'
 import Map_ from '../../Basics/Map_/Map_'
+import ToolController_ from '../../Basics/ToolController_/ToolController_'
 
 //Add the tool markup if you want to do it this way
 var markup = [].join('\n')
@@ -20,19 +21,35 @@ var LegendTool = {
         this.displayOnStart = L_.getToolVars('legend')['displayOnStart']
         this.justification = L_.getToolVars('legend')['justification']
         if (this.justification == 'right') {
-            var toolController = d3.select('#toolcontroller_sepdiv')
-            var toolContent = d3.select('#toolContentSeparated_Legend')
+            const toolController = d3.select('#toolcontroller_sepdiv')
+            const toolContent = d3.select('#toolContentSeparated_Legend')
             toolController.style('top', '40px')
             toolController.style('left', null)
             toolController.style('right', '40px')
             toolContent.style('left', null)
             toolContent.style('right', '0px')
-
-            d3.select('#toolSeparated_Legend').style('top', '5px')
-        }        
+        } else {
+            const toolController = d3
+                .select('#toolcontroller_sepdiv')
+                .clone(false)
+                .attr('id', 'toolcontroller_sepdiv_left')
+            $('#toolSeparated_Legend').appendTo('#toolcontroller_sepdiv_left')
+            toolController.style(
+                'top',
+                (L_.getToolVars('identifier')['justification'] || 'left') ==
+                    'left'
+                    ? '75px'
+                    : '40px'
+            )
+            toolController.style('left', '5px')
+            toolController.style('right', null)
+        }
     },
     make: function (targetId) {
-        this.targetId = targetId
+        this.targetId =
+            typeof targetId === 'string'
+                ? targetId
+                : '__LegendTool_missing_targetId'
         this.MMWebGISInterface = new interfaceWithMMWebGIS()
         this.activeLayerNames = []
 
@@ -48,6 +65,7 @@ var LegendTool = {
         L_.unsubscribeOnLayerToggle('LegendTool')
         this.made = false
     },
+    refreshLegends: refreshLegends,
     overwriteLegends: overwriteLegends,
 }
 
@@ -58,30 +76,14 @@ function interfaceWithMMWebGIS() {
     }
     separateFromMMWebGIS()
 
-    let tools = drawLegendHeader()
+    LegendTool.tools = drawLegendHeader()
 
     //Add the markup to tools or do it manually
     //tools.html( markup );
 
     //Add event functions and whatnot
     //Draw legends
-    var first = true
-    for (let l in L_.layers.on) {
-        if (L_.layers.on[l] == true) {
-            if (L_.layers.data[l].type != 'header') {
-                if (L_.layers.data[l]?._legend != undefined) {
-                    drawLegends(
-                        tools,
-                        L_.layers.data[l]?._legend,
-                        l,
-                        L_.layers.data[l].display_name,
-                        L_.layers.opacity[l]
-                    )
-                }
-            }
-        }
-    }
-
+    LegendTool.refreshLegends()
     //Share everything. Don't take things that aren't yours.
     // Put things back where you found them.
     function separateFromMMWebGIS() {
@@ -91,6 +93,33 @@ function interfaceWithMMWebGIS() {
         tools.style('background', 'var(--color-k)')
         //Clear it
         tools.selectAll('*').remove()
+    }
+}
+
+function refreshLegends() {
+    $('#LegendTool').empty()
+
+    for (let l in L_.layers.on) {
+        if (L_.layers.on[l] == true) {
+            if (L_.layers.data[l].type != 'header') {
+                if (L_.layers.data[l]?._legend === undefined
+                        && ((['image', 'tile'].includes(L_.layers.data[l].type) && L_.layers.data[l].cogTransform)
+                        || L_.layers.data[l].type === 'velocity')) {
+                    const layersTool = ToolController_.getTool('LayersTool')
+                    layersTool.populateCogScale(L_.layers.data[l].name)
+                }
+
+                if (L_.layers.data[l]?._legend != undefined) {
+                    drawLegends(
+                        LegendTool.tools,
+                        L_.layers.data[l]?._legend,
+                        l,
+                        L_.layers.data[l].display_name,
+                        L_.layers.opacity[l]
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -135,8 +164,14 @@ function drawLegendHeader() {
         .style('height', '30px')
         .style('line-height', '30px')
         .style('font-size', '13px')
-        .style('padding-right', '8px')
-        .style('padding-left', '30px')
+        .style(
+            'padding-right',
+            LegendTool.justification === 'right' ? '30px' : '8px'
+        )
+        .style(
+            'padding-left',
+            LegendTool.justification === 'right' ? '10px' : '30px'
+        )
         .style('color', 'var(--color-l)')
         .style('background', 'var(--color-i)')
         .style('font-family', 'lato-light')
@@ -160,6 +195,7 @@ function drawLegendHeader() {
 }
 
 function drawLegends(tools, _legend, layerUUID, display_name, opacity) {
+    if (tools == null) return
     var c = tools
         .append('div')
         .attr('class', 'mmgisScrollbar')
@@ -181,70 +217,10 @@ function drawLegends(tools, _legend, layerUUID, display_name, opacity) {
     let lastContinues = []
     let lastShape = ''
     for (let d in _legend) {
-        var shape = _legend[d].shape
-        if (
-            shape == 'circle' ||
-            shape == 'square' ||
-            shape == 'rect' ||
-            shape == 'triangle'
-        ) {
-            // finalize discreet and continuous
-            if (lastContinues.length > 0) {
-                pushScale(lastContinues)
-                lastContinues = []
-            }
-
-            var r = c
-                .append('div')
-                .attr('class', 'row')
-                .style('display', 'flex')
-                .style('margin', '0px 0px 8px 9px')
-
-            switch (shape) {
-                case 'circle':
-                    r.append('div')
-                        .attr('class', layerUUID + '_legendshape')
-                        .style('width', '18px')
-                        .style('height', '18px')
-                        .style('background', _legend[d].color)
-                        .style('opacity', opacity)
-                        .style('border', `1px solid ${_legend[d].strokecolor}`)
-                        .style('border-radius', '50%')
-                    break
-                case 'square':
-                    r.append('div')
-                        .attr('class', layerUUID + '_legendshape')
-                        .style('width', '18px')
-                        .style('height', '18px')
-                        .style('background', _legend[d].color)
-                        .style('opacity', opacity)
-                        .style('border', `1px solid ${_legend[d].strokecolor}`)
-                    break
-                case 'rect':
-                    r.append('div')
-                        .attr('class', layerUUID + '_legendshape')
-                        .style('width', '18px')
-                        .style('height', '8px')
-                        .style('margin', '5px 0px 5px 0px')
-                        .style('background', _legend[d].color)
-                        .style('opacity', opacity)
-                        .style('border', `1px solid ${_legend[d].strokecolor}`)
-                    break
-                default:
-            }
-
-            r.append('div')
-                .style('margin-left', '5px')
-                .style('height', '100%')
-                .style('line-height', '19px')
-                .style('font-size', '14px')
-                .style('overflow', 'hidden')
-                .style('white-space', 'nowrap')
-                .style('max-width', '270px')
-                .style('text-overflow', 'ellipsis')
-                .attr('title', _legend[d].value)
-                .text(_legend[d].value)
-        } else if (shape == 'continuous' || shape == 'discreet') {
+        var shape = _legend[d].shapeImage && _legend[d].shapeImage.trim()
+            ? _legend[d].shapeImage : _legend[d].shapeIcon && _legend[d].shapeIcon.trim()
+            ? _legend[d].shapeIcon : _legend[d].shape
+        if (shape == 'continuous' || shape == 'discreet') {
             if (lastShape != shape) {
                 if (lastContinues.length > 0) {
                     pushScale(lastContinues)
@@ -257,36 +233,92 @@ function drawLegends(tools, _legend, layerUUID, display_name, opacity) {
                 value: _legend[d].value,
             })
             lastShape = shape
-        } else if ( String(shape).endsWith('.png') || String(shape).endsWith('.svg')) {
-            // PNG or SVG markers
+        } else {
+            
+            // finalize discreet and continuous
+            if (lastContinues.length > 0) {
+                pushScale(lastContinues)
+                lastContinues = []
+            }
             var r = c
                 .append('div')
                 .attr('class', 'row')
                 .style('display', 'flex')
-                .style('margin', '0px 0px 8px 9px')     
+                .style('margin', '0px 0px 8px 9px')
+
+            if (
+                shape == 'circle' ||
+                shape == 'square' ||
+                shape == 'rect'
+            ) {
+                switch (shape) {
+                    case 'circle':
+                        r.append('div')
+                            .attr('class', layerUUID + '_legendshape')
+                            .style('width', '18px')
+                            .style('height', '18px')
+                            .style('background', _legend[d].color)
+                            .style('opacity', opacity)
+                            .style('border', `1px solid ${_legend[d].strokecolor}`)
+                            .style('border-radius', '50%')
+                        break
+                    case 'square':
+                        r.append('div')
+                            .attr('class', layerUUID + '_legendshape')
+                            .style('width', '18px')
+                            .style('height', '18px')
+                            .style('background', _legend[d].color)
+                            .style('opacity', opacity)
+                            .style('border', `1px solid ${_legend[d].strokecolor}`)
+                        break
+                    case 'rect':
+                        r.append('div')
+                            .attr('class', layerUUID + '_legendshape')
+                            .style('width', '18px')
+                            .style('height', '8px')
+                            .style('margin', '5px 0px 5px 0px')
+                            .style('background', _legend[d].color)
+                            .style('opacity', opacity)
+                            .style('border', `1px solid ${_legend[d].strokecolor}`)
+                        break
+                    default:
+                }
+            } else if (String(shape).toLowerCase().match(/\.(jpeg|jpg|gif|png|svg|webp)$/) != null) {
+                // Image markers   
+                r.append('div')
+                    .attr('class', layerUUID + '_legendcustom')
+                    .style('width', '24px')
+                    .style('height', '24px')
+                    .style('background', _legend[d].color)
+                    .style('opacity', opacity)
+                    .style('border', `1px solid ${_legend[d].strokecolor}`)
+                    .style('background-image', `url(${shape.startsWith("http") 
+                        ? shape : L_.missionPath + shape})`)
+                    .style('background-size', 'contain')
+                    .style('background-repeat', 'no-repeat')
+            } else { // try using shape from Material Design Icon (mdi) library    
+                r.append('div')
+                    .attr('class', layerUUID + '_legendicon')
+                    .style('width', '18px')
+                    .style('height', '18px')
+                    .append('i')
+                        .attr('class', 'mdi mdi-18px mdi-' + shape)
+                        .style('color', _legend[d].color)
+                        .style('opacity', opacity)
+                        .style('border', `1px solid ${_legend[d].strokecolor}`)
+            }
 
             r.append('div')
-                .attr('class', layerUUID + '_legendcustom')
-                .style('width', '24px')
-                .style('height', '24px')
-                .style('background', _legend[d].color)
-                .style('opacity', opacity)
-                .style('border', `1px solid ${_legend[d].strokecolor}`)
-                .style('background-image', `url(${_legend[d].shape})`)
-                .style('background-size', 'contain')
-
-            r.append('div')
-                .style('margin-left', '5px')
-                .style('height', '100%')
-                .style('line-height', '19px')
-                .style('font-size', '14px')
-                .style('overflow', 'hidden')
-                .style('white-space', 'nowrap')
-                .style('max-width', '270px')
-                .style('text-overflow', 'ellipsis')
-                .attr('title', _legend[d].value)
-                .text(_legend[d].value)
-            
+            .style('margin-left', '5px')
+            .style('height', '100%')
+            .style('line-height', '19px')
+            .style('font-size', '14px')
+            .style('overflow', 'hidden')
+            .style('white-space', 'nowrap')
+            .style('max-width', '270px')
+            .style('text-overflow', 'ellipsis')
+            .attr('title', _legend[d].value)
+            .text(_legend[d].value)
         }
     }
     if (lastContinues.length > 0) {

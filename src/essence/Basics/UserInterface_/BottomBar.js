@@ -79,6 +79,10 @@ let BottomBar = {
                 $('.leaflet-control-zoom').css('display', 'none')
                 $('#topBarScreenshotLoading').css('display', 'block')
                 $('#scaleBar').css('margin-top', '0px')
+                const savedMapToolBarBottom =
+                    $('#mapToolBar').css('bottom') || '0px'
+                $('#mapToolBar').css('bottom', '0px')
+                $(`#toggleTimeUI.active`).trigger('click')
 
                 const documentElm = document.getElementById('mapScreen')
                 HTML2Canvas(documentElm, {
@@ -127,9 +131,18 @@ let BottomBar = {
                 }).then(function (canvas) {
                     canvas.id = 'mmgisScreenshot'
                     document.body.appendChild(canvas)
+
+                    const mission = L_.configData?.msv?.mission
+                    const time = L_.TimeControl_?.currentTime
+                    const mapCenter = L_.Map_.map.getCenter()
+                    const lng = mapCenter.lng.toFixed(4)
+                    const lat = mapCenter.lat.toFixed(4)
+
                     F_.downloadCanvas(
                         canvas.id,
-                        'mmgis-screenshot',
+                        `mmgis-${mission}_${
+                            time ? `${time.replaceAll(':', '-')}_` : ''
+                        }${lat}_${lng}`,
                         function () {
                             canvas.remove()
                             setTimeout(function () {
@@ -150,6 +163,7 @@ let BottomBar = {
                 $('#mmgis-map-compass').css('display', 'block')
                 $('.leaflet-control-zoom').css('display', 'block')
                 $('#scaleBar').css('margin-top', '5px')
+                $('#mapToolBar').css('bottom', 'savedMapToolBarBottom')
             })
 
         tippy(`#topBarScreenshot`, {
@@ -392,6 +406,36 @@ let BottomBar = {
                             `</ul>`,
                         `</div>`,
                         `<div class='mainHotkeysModalSection'>`,
+                            `<div class='mainHotkeysModalSectionTitle'>Info</div>`,
+                            `<ul class='mainHotkeysModalSectionOptions'>`,
+                                `<li class='mainHotkeysModalSectionSubtitle'>Navigate</li>`,
+                                `<li>`,
+                                    `<div>Next (Ordered) Feature (Top-Bar)</div>`,
+                                    `<div>Arrow-Right</div>`,
+                                `</li>`,
+                                `<li>`,
+                                    `<div>Previous (Ordered) Feature (Top-Bar)</div>`,
+                                    `<div>Arrow-Left</div>`,
+                                `</li>`,
+                                `<li>`,
+                                    `<div>Next (Overlapping) Feature</div>`,
+                                    `<div>SHIFT + Arrow-Right</div>`,
+                                `</li>`,
+                                `<li>`,
+                                    `<div>Previous (Overlapping) Feature</div>`,
+                                    `<div>SHIFT + Arrow-Left</div>`,
+                                `</li>`,
+                                `<li>`,
+                                    `<div>Next (Associated) Feature</div>`,
+                                    `<div>CTRL/CMD + Arrow-Right</div>`,
+                                `</li>`,
+                                `<li>`,
+                                    `<div>Previous (Associated) Feature</div>`,
+                                    `<div>CTRL/CMD + Arrow-Left</div>`,
+                                `</li>`,
+                            `</ul>`,
+                        `</div>`,
+                        `<div class='mainHotkeysModalSection'>`,
                             `<div class='mainHotkeysModalSectionTitle'>Map</div>`,
                             `<ul class='mainHotkeysModalSectionOptions'>`,
                                 `<li>`,
@@ -515,7 +559,7 @@ let BottomBar = {
                                 `</li>`,
                             `</ul>`,
                         `</div>`,
-                        (L_.Globe_ ? 
+                        (L_.Globe_ && L_.hasGlobe ? 
                             [`<div class='mainSettingsModalSection' id='mainSettingsModalSection3DGlobe'>`,
                                 `<div class='mainSettingsModalSectionTitle'>3D Globe</div>`,
                                 `<ul class='mainSettingsModalSectionOptions'>`,
@@ -555,7 +599,7 @@ let BottomBar = {
                     $(
                         '#mainSettingsModalSection3DGlobe #globeSetRadiusOfTiles'
                     ).on('input', function () {
-                        if (L_.Globe_) {
+                        if (L_.Globe_ && L_.hasGlobe) {
                             L_.Globe_.litho.options.radiusOfTiles = parseInt(
                                 $(this).val()
                             )
