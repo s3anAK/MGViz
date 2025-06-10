@@ -339,11 +339,12 @@ var ChartTool = {
           let end_date = incrementDate(start_date, 1);
           end_date = end_date.toISOString().substr(0, 10);
           ChartTool.calendar.setDate(ChartTool.date, false);
+          window.mmgisAPI.setTime(start_date, end_date, false);
 
           let siteOptions = new SiteOptions($('#siteSelect').val(), ChartTool.source, ChartTool.fil, ChartTool.type, ChartTool.mode, ChartTool.param, ChartTool.date);
           ToolController_.activeTool.loadChart(siteOptions, [ChartTool.north, ChartTool.east,ChartTool.up], ChartTool.coseismics, ChartTool.offset, ChartTool.stackOn, ChartTool.version);
       },
-    }); 
+    });
 
     if (!ChartTool.param) {
         $('#calendarInput').prop('disabled', true);
