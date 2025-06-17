@@ -11,6 +11,10 @@ router.get("/coseismic", function (req, res, next) {
   coseismic(req, res, next, "get");
 });
 
+router.get("/detection", function (req, res, next) {
+  detection(req, res, next, "get");
+});
+
 router.get("/detections", function (req, res, next) {
   detections(req, res, next, "get");
 });
@@ -100,6 +104,84 @@ function coseismic(req, res, next, type) {
         });
       });
   }
+}
+
+function detection(req, res, next, type) {
+  //Have it accept either post or get
+  let params = null;
+  if (type === "get") params = req.query;
+  else if (type === "post") params = req.body;
+  else {
+    res.send({
+      status: "failure",
+      message: "Unexpected HTTP method: " + type,
+      body: {},
+    });
+    return;
+  }
+
+  sequelize
+    .query(
+      "SELECT * FROM detection, model " + 
+	    "WHERE detection.model_id = model.id " +
+	    "AND mode = $mode " +
+	    "AND name = $model " +
+	    "AND site_id = $site " +
+      "ORDER BY detection.id ASC",
+      {
+        bind: {
+          mode: params.mode,
+          model: params.model,
+          site: params.site,
+        },
+      }
+    )
+    .then(([detection]) => {
+      result = {}
+      metadata = {}
+      detections = []
+
+      if (detection.length > 0) {
+        metadata['label'] = detection[0]['label']
+        metadata['stationid'] = detection[0]['site_id']
+        metadata['eventtype'] = detection[0]['eventtype']
+        metadata['modelid'] = detection[0]['model_id']
+
+        for (let i = 0; i < detection.length; i++) {
+          if (params.mode === "tropospheric") {
+            formattedStart = (new Date(detection[i]['startdate'])).getTime()
+            formattedEnd = (new Date(detection[i]['enddate'])).getTime()
+          } else {
+            formattedStart = dateToDecimalDate(new Date(detection[i]['startdate']))
+            formattedEnd = dateToDecimalDate(new Date(detection[i]['enddate']))
+          }
+          d = {
+            detection_id: detection[i]['detection_id'],
+            startdate: formattedStart,
+            enddate: formattedEnd,
+            probability: detection[i]['probability']
+          }
+          detections[i] = d
+        }
+        result['metadata'] =  metadata
+        result['detections'] = detections
+      }
+      res.send(result);
+    })
+    .catch((err) => {
+      logger(
+        "error",
+        "SQL error while acquiring detections.",
+        req.originalUrl,
+        req,
+        err
+      );
+      res.send({
+        status: "failure",
+        message: "SQL error while acquiring detections.",
+        body: {},
+      });
+    });
 }
 
 function detections(req, res, next, type) {
@@ -250,6 +332,20 @@ function earthquakes(req, res, next, type) {
 function isISODateString(dateString) {
   const date = new Date(dateString);
   return !isNaN(date.getTime()) && dateString === date.toISOString();
+}
+
+function dateToDecimalDate(date) {
+    const year = date.getFullYear();
+    const start = new Date(year, 0, 1);
+    const end = new Date(year + 1, 0, 1);
+
+    // Calculate the fraction of the year that has passed
+    const yearLength = end - start;
+    const elapsed = date - start;
+
+    // Decimal date = year + fraction of year elapsed
+    const decimalDate = year + (elapsed / yearLength);
+    return Number(decimalDate.toFixed(4));
 }
 
 module.exports = router;

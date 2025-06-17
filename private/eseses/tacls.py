@@ -4,6 +4,29 @@ import os.path
 import json
 import glob
 import re
+import requests
+
+
+API_URL = 'http://localhost:8888/api'
+
+
+def query_detections(mode, model, site):
+    """
+    Query detections from the database.
+    """
+    params = {
+        'mode': mode,
+        'model': model,
+        'site': site
+    }
+    url = f"{API_URL}/mgviz/detection"
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f'Error querying detections: {response.status_code}')
+        sys.exit(1)
+
 
 path = 'private/eseses/tacls'
 
@@ -38,8 +61,8 @@ else:
 sources = {'comb': 'Comb',
            'combg': 'Combg',
            'jpl': 'JPL',
-            'sopac' : 'SOPAC',
-            'sopacR20' : 'SOPACR20'}
+           'sopac': 'SOPAC',
+           'sopacR20': 'SOPACR20'}
 
 filters = {'flt': 'Filter',
            'clean': 'Clean',
@@ -57,6 +80,8 @@ plotlines = []
 plotbands = []
 name = site + ': ' + str(sources[source]) + '/' + filters[fil] + '/' + types[ttype] + ' -'
 file_list = glob.glob(path + '/' + version + '/' + site + '*.json')
+if len(file_list) == 0:
+    file_list.append('query/database')
 for idx, f in enumerate(sorted(file_list)):
     test_file = f
     if os.path.exists(test_file):
@@ -64,32 +89,34 @@ for idx, f in enumerate(sorted(file_list)):
             tacls = json.load(f)
             # print('\n' + json.dumps(tacls, indent=4) + '\n')
     else:
-        print(f'{test_file} does not exist')
+        # print(f'{test_file} does not exist...querying database')
+        tacls = query_detections(str(sys.argv[1]), version, site)
 
     palette_line = ["#ffd92f", "#8da0cb", "#e78ac3", "#a6d854", "#377eb8"]
     plotline_dict = {"color": palette_line[idx], "dashStyle": "solid", "width": 2}
 
-
     palette_dict = ["rgb(255, 242, 174, 0.5)", "rgb(203, 213, 232, 0.5)", "rgb(244, 202, 228, 0.5)", "#rgb(230, 245, 201, 0.5)", "rgb(179, 205, 227, 0.5)"]
     plotband_dict = {"color": palette_dict[idx]}
 
-    for detection in tacls['detections']:
-        # startdate
-        plotline = plotline_dict.copy()
-        plotline['value'] = detection['startdate']
-        plotlines.append(plotline)
-        # enddate
-        plotline = plotline_dict.copy()
-        plotline['value'] = detection['enddate']
-        plotlines.append(plotline)
-        # shade
-        plotband = plotband_dict.copy()
-        plotband['from'] = detection['startdate']
-        plotband['to'] = detection['enddate']
-        plotbands.append(plotband)
+    if 'detections' in tacls:
+        for detection in tacls['detections']:
+            # startdate
+            plotline = plotline_dict.copy()
+            plotline['value'] = detection['startdate']
+            plotlines.append(plotline)
+            # enddate
+            plotline = plotline_dict.copy()
+            plotline['value'] = detection['enddate']
+            plotlines.append(plotline)
+            # shade
+            plotband = plotband_dict.copy()
+            plotband['from'] = detection['startdate']
+            plotband['to'] = detection['enddate']
+            plotbands.append(plotband)
 
-    tacls['metadata']['color'] = palette_line[idx]
-    metadata.append(tacls['metadata'])
+    if 'metadata' in tacls:
+        tacls['metadata']['color'] = palette_line[idx]
+        metadata.append(tacls['metadata'])
 
 results = {'metadata': metadata, 'plotlines': plotlines, 'plotbands': plotbands}
 
