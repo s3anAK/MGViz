@@ -15,8 +15,8 @@ router.get("/detection", function (req, res, next) {
   detection(req, res, next, "get");
 });
 
-router.get("/detections", function (req, res, next) {
-  detections(req, res, next, "get");
+router.get("/spatialdetections", function (req, res, next) {
+  spatialdetections(req, res, next, "get");
 });
 
 router.get("/earthquakes", function (req, res, next) {
@@ -184,7 +184,7 @@ function detection(req, res, next, type) {
     });
 }
 
-function detections(req, res, next, type) {
+function spatialdetections(req, res, next, type) {
   //Have it accept either post or get
   let params = null;
   if (type === "get") params = req.query;
