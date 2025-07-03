@@ -621,7 +621,7 @@ setups.getBackendSetups(function (setups) {
   app.use(
     `${ROOT_PATH}/Missions`,
     ensureUser(),
-    middleware.missions(),
+    middleware.missions(ROOT_PATH),
     express.static(path.join(rootDir, "/Missions"))
   );
 
