@@ -270,6 +270,7 @@ var TimeControl = {
                             )
                         }
                     }
+                    Map_.refreshLayer(L_.layers.data[layer.name])
                 }
             }
             if (
