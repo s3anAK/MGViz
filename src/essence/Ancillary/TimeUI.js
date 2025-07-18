@@ -18,6 +18,7 @@ import { TempusDominus, Namespace } from '@eonasdan/tempus-dominus'
 import '@eonasdan/tempus-dominus/dist/css/tempus-dominus.css'
 
 import './TimeUI.css'
+import ChartTool from '../MMGIS-Private-Tools/Chart/ChartTool'
 
 const FORMAT = 'MM/DD/yyyy, hh:mm:ss A'
 
@@ -1145,6 +1146,7 @@ const TimeUI = {
                     new Date(offsetNowDate)
                 )
                 TimeUI.endTempus.dates.setValue(parsedNow)
+                ToolController_.getTool( 'ChartTool' ).setDate(parsedNow.toISOString().split('T')[0])
             }
             TimeUI._updateExtentIndicator()
         })

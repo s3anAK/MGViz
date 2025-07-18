@@ -337,6 +337,7 @@ var ChartTool = {
           ChartTool.date = dateStr; 
           const start_date = dateStr;
           let end_date = incrementDate(start_date, 1);
+          end_date = new Date(end_date.getTime() - 1000);
           end_date = end_date.toISOString().substr(0, 10);
           ChartTool.calendar.setDate(ChartTool.date, false);
           window.mmgisAPI.setTime(start_date, end_date, false);
@@ -2457,6 +2458,12 @@ var ChartTool = {
   getCoseismicSites: function (id) {
     $('#selectCoseismic').val(id)
     getCoseismicSites(id)
+  },
+  setDate: function (date) {
+    ChartTool.date = date;
+    ChartTool.calendar.setDate(date);
+    let siteOptions = new SiteOptions($('#siteSelect').val(), ChartTool.source, ChartTool.fil, ChartTool.type, ChartTool.mode, ChartTool.param, ChartTool.date);
+    ToolController_.activeTool.loadChart(siteOptions, [ChartTool.north, ChartTool.east,ChartTool.up], ChartTool.coseismics, ChartTool.offset, ChartTool.stackOn, ChartTool.version);
   }
 };
 
