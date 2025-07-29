@@ -680,7 +680,6 @@ var ChartTool = {
       $('#chart1').hide();
       $('#chart2').hide();
       $('#chart3').hide();
-      $('#introDiv').show();
       $('#textGroup').val('Default Group');
       $('#inputImport').val('');
       ToolController_.activeTool.site = '';
