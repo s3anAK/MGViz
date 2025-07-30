@@ -312,6 +312,11 @@ function drawLegends(tools, _legend, layerUUID, display_name, opacity) {
     }
 
     for (let d in _legend) {
+        // Skip legend entries that should be hidden from the legend
+        if (_legend[d].hideFromLegend === true) {
+            continue
+        }
+        
         var shape = _legend[d].shapeImage && _legend[d].shapeImage.trim()
             ? _legend[d].shapeImage : _legend[d].shapeIcon && _legend[d].shapeIcon.trim()
             ? _legend[d].shapeIcon : _legend[d].shape

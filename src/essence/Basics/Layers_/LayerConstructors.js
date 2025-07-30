@@ -13,6 +13,62 @@ import { centroid } from '@turf/turf'
 
 let L = window.L
 
+// Helper function to interpolate between two colors
+function interpolateColor(color1, color2, factor) {
+    if (!color1 || !color2) return color1 || color2
+    
+    // Ensure factor is between 0 and 1
+    factor = Math.max(0, Math.min(1, factor))
+    
+    // Convert colors to RGB if they're hex
+    const rgb1 = hexToRgb(color1) || parseRgb(color1)
+    const rgb2 = hexToRgb(color2) || parseRgb(color2)
+    
+    if (!rgb1 || !rgb2) return color1 // Fallback if color parsing fails
+    
+    // Interpolate each RGB component
+    const r = Math.round(rgb1.r + (rgb2.r - rgb1.r) * factor)
+    const g = Math.round(rgb1.g + (rgb2.g - rgb1.g) * factor)
+    const b = Math.round(rgb1.b + (rgb2.b - rgb1.b) * factor)
+    
+    return `rgb(${r}, ${g}, ${b})`
+}
+
+// Helper function to convert hex color to RGB
+function hexToRgb(hex) {
+    if (!hex || typeof hex !== 'string') return null
+    
+    // Remove # if present
+    hex = hex.replace('#', '')
+    
+    // Handle 3-character hex
+    if (hex.length === 3) {
+        hex = hex.split('').map(char => char + char).join('')
+    }
+    
+    if (hex.length !== 6) return null
+    
+    const r = parseInt(hex.substr(0, 2), 16)
+    const g = parseInt(hex.substr(2, 2), 16)
+    const b = parseInt(hex.substr(4, 2), 16)
+    
+    return isNaN(r) || isNaN(g) || isNaN(b) ? null : { r, g, b }
+}
+
+// Helper function to parse rgb() color strings
+function parseRgb(color) {
+    if (!color || typeof color !== 'string') return null
+    
+    const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/)
+    if (!match) return null
+    
+    return {
+        r: parseInt(match[1]),
+        g: parseInt(match[2]),
+        b: parseInt(match[3])
+    }
+}
+
 const tooltipProto = L.Tooltip.prototype
 const tooltipProto_setPosition = tooltipProto._setPosition
 L.Tooltip.include({
@@ -92,6 +148,114 @@ export const constructVectorLayer = (
                     preferredStyle.radius != null
                         ? String(preferredStyle.radius)
                         : rad
+            }
+
+            // Check for legend-based property styling (takes priority over configured styles but not over feature.properties.style)
+            const legendData = L_.layers.data[layerObj.name]?._legend
+            if (legendData && Array.isArray(legendData)) {
+                // Group legend entries by property name for gradient interpolation
+                const propertyGroups = {}
+                for (let legendEntry of legendData) {
+                    if (legendEntry.styleMatching && legendEntry.propertyName && legendEntry.propertyValue !== undefined) {
+                        if (!propertyGroups[legendEntry.propertyName]) {
+                            propertyGroups[legendEntry.propertyName] = []
+                        }
+                        propertyGroups[legendEntry.propertyName].push(legendEntry)
+                    }
+                }
+                
+                // Process each property group
+                for (let propertyName in propertyGroups) {
+                    const featureValue = feature.properties[propertyName]
+                    const entries = propertyGroups[propertyName]
+                    
+                    // First try exact matching
+                    let exactMatch = null
+                    for (let entry of entries) {
+                        let matches = false
+                        if (typeof featureValue === 'string' && typeof entry.propertyValue === 'string') {
+                            matches = featureValue === entry.propertyValue
+                        } else if (typeof featureValue === 'number' && !isNaN(parseFloat(entry.propertyValue))) {
+                            matches = featureValue === parseFloat(entry.propertyValue)
+                        } else if (typeof featureValue === 'boolean') {
+                            matches = featureValue === (entry.propertyValue === 'true' || entry.propertyValue === true)
+                        } else {
+                            matches = String(featureValue) === String(entry.propertyValue)
+                        }
+                        
+                        if (matches) {
+                            exactMatch = entry
+                            break
+                        }
+                    }
+                    
+                    if (exactMatch) {
+                        if (exactMatch.color) {
+                            fiC = exactMatch.color
+                        }
+                        if (exactMatch.strokecolor) {
+                            col = exactMatch.strokecolor
+                        }
+                        if (exactMatch.color && !exactMatch.strokecolor) {
+                            col = exactMatch.color
+                        }
+                        break // Found styling, stop processing other properties
+                    }
+                    
+                    // If no exact match and feature value is numeric, try gradient interpolation
+                    if (typeof featureValue === 'number') {
+                        // Convert all legend values to numbers and sort
+                        const numericEntries = entries
+                            .map(entry => ({
+                                ...entry,
+                                numericValue: parseFloat(entry.propertyValue)
+                            }))
+                            .filter(entry => !isNaN(entry.numericValue))
+                            .sort((a, b) => a.numericValue - b.numericValue)
+                        
+                        if (numericEntries.length >= 2) {
+                            // Find the two entries that bracket the feature value
+                            let lowerEntry = null
+                            let upperEntry = null
+                            
+                            for (let i = 0; i < numericEntries.length - 1; i++) {
+                                if (featureValue >= numericEntries[i].numericValue && featureValue <= numericEntries[i + 1].numericValue) {
+                                    lowerEntry = numericEntries[i]
+                                    upperEntry = numericEntries[i + 1]
+                                    break
+                                }
+                            }
+                            
+                            // Handle edge cases: value below minimum or above maximum
+                            if (!lowerEntry && featureValue < numericEntries[0].numericValue) {
+                                lowerEntry = upperEntry = numericEntries[0]
+                            } else if (!upperEntry && featureValue > numericEntries[numericEntries.length - 1].numericValue) {
+                                lowerEntry = upperEntry = numericEntries[numericEntries.length - 1]
+                            }
+                            
+                            if (lowerEntry && upperEntry) {
+                                const range = upperEntry.numericValue - lowerEntry.numericValue
+                                const factor = range === 0 ? 0 : (featureValue - lowerEntry.numericValue) / range
+                                
+                                // Interpolate colors
+                                const interpolatedFillColor = interpolateColor(lowerEntry.color, upperEntry.color, factor)
+                                const interpolatedStrokeColor = interpolateColor(
+                                    lowerEntry.strokecolor || lowerEntry.color, 
+                                    upperEntry.strokecolor || upperEntry.color, 
+                                    factor
+                                )
+                                
+                                if (interpolatedFillColor) {
+                                    fiC = interpolatedFillColor
+                                }
+                                if (interpolatedStrokeColor) {
+                                    col = interpolatedStrokeColor
+                                }
+                                break // Found styling, stop processing other properties
+                            }
+                        }
+                    }
+                }
             }
 
             if (feature.properties.hasOwnProperty('style')) {

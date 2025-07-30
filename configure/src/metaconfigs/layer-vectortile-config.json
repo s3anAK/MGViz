@@ -504,6 +504,36 @@
                   "description": "A URL to a custom image (jpeg|jpg|gif|png|svg|webp) for which to use for this legend entry. If the path is relative, it will be relative to the mission's directory. This field will override values in the Shape and Shape From Icon fields.",
                   "type": "text",
                   "width": 4
+                },
+                {
+                  "field": "propertyName",
+                  "name": "Property Name",
+                  "description": "The name of the property to match for this legend entry.",
+                  "type": "text",
+                  "width": 4
+                },
+                {
+                  "field": "propertyValue",
+                  "name": "Property Value",
+                  "description": "The value of the property to match for this legend entry.",
+                  "type": "text",
+                  "width": 4
+                },
+                {
+                  "field": "styleMatching",
+                  "name": "Style Matching",
+                  "description": "If true, the style of the feature will be matched to this legend entry. If false, the style will be applied regardless of the feature's style.",
+                  "type": "checkbox",
+                  "width": 2,
+                  "defaultChecked": false
+                },
+                {
+                  "field": "hideFromLegend",
+                  "name": "Hide From Legend",
+                  "description": "If true, this legend entry will be hidden from the legend.",
+                  "type": "checkbox",
+                  "width": 2,
+                  "defaultChecked": false
                 }
               ]
             }
