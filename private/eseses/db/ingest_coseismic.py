@@ -19,18 +19,34 @@ def ingest_coseismics(df, conn, limit):
 
     for idx, row in df.iterrows():
         # Get the Date and Time
-        date = row['Date (UTC)']
+        date_str = str(row['Date (UTC)'])
         time = row['Time (UTC)']
         location = row['Location/Local Name']
         magnitude = row['Magnitude']
-        date_time = str(date) + ' ' + str(time) + '+00:00'
+
+        # Handle date formats: "%Y-%m-%d" and "%m/%d/%Y"
+        try:
+            # First try parsing as "%Y-%m-%d"
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+            formatted_date = date_obj.strftime('%Y-%m-%d')
+        except ValueError:
+            try:
+                # If that fails, try parsing as "%m/%d/%Y"
+                date_obj = datetime.strptime(date_str, '%m/%d/%Y')
+                formatted_date = date_obj.strftime('%Y-%m-%d')
+            except ValueError:
+                print(f'Invalid date format: {date_str}...skipping')
+                skipped += 1
+                continue
+
+        date_time = formatted_date + ' ' + str(time) + '+00:00'
         latitude = float(str(row['Latitude']).replace('°', ''))
         latdir = row[row.index.get_loc('Latitude')+1]
         longitude = float(str(row['Longitude']).replace('°', ''))
         londir = row[row.index.get_loc('Longitude')+1]
 
         # Print record
-        print(f"Record {idx}: Date = {date}, Time = {time}, \
+        print(f"Record {idx}: Date = {date_str} -> {formatted_date}, Time = {time}, \
               Lat = {latitude} {latdir}, Lon = {longitude} {londir}, \
               Magnitude = {magnitude}, Location = {location}")
 
@@ -40,11 +56,11 @@ def ingest_coseismics(df, conn, limit):
         if londir == 'W':
             longitude = longitude * -1
 
-        # Ignore invalid values
+        # Validate final datetime string
         try:
             datetime.strptime(date_time, '%Y-%m-%d %H:%M:%S+00:00')
         except ValueError:
-            print('Invalid datetime...skipping')
+            print(f'Invalid datetime: {date_time}...skipping')
             skipped += 1
             continue
 
@@ -225,7 +241,14 @@ try:
     if not args.linkonly:
         # Parse Excel sheet
         print('Parsing ', args.filepath)
-        df = pd.read_csv(args.filepath, skiprows=[0, 2])
+        
+        # Check if there's an extra row to skip
+        with open(args.filepath, 'r') as file:
+            first_line = file.readline().strip()
+            if first_line[0:2] == ',,':
+                df = pd.read_csv(args.filepath, skiprows=[0,2])
+            else:
+                df = pd.read_csv(args.filepath)
         print(df.head())
         ingest_coseismics(df, conn, int(args.limit))
     if not args.nolink:
