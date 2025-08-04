@@ -4,6 +4,9 @@ channels:
 dependencies:
   - python==3.12
   - gdal==3.9.3
+  - rasterio
+  - geos
+  - proj
   - pip
   - pip:
       - numpy==2.1.0

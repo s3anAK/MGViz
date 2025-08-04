@@ -109,6 +109,56 @@ function refreshLegends() {
                     layersTool.populateCogScale(L_.layers.data[l].name)
                 }
 
+                // Check if there's a legend URL that points to an image
+                const legendURL = L_.layers.data[l]?.legend
+                if (legendURL && typeof legendURL === 'string') {
+                    let isImageUrl = false
+
+                    // First check for file extensions
+                    const fileExtension = legendURL.toLowerCase().split('.').pop().split('?')[0] // Remove query params
+                    const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'tiff', 'tif', 'bmp', 'ico', 'avif']
+
+                    if (imageExtensions.includes(fileExtension)) {
+                        isImageUrl = true
+                    } else if (['csv'].includes(fileExtension)) {
+                        isImageUrl = false
+                    } else {
+                        // If no file extension and not a csv, check for image MIME types in URL parameters (e.g., WMS GetLegendGraphic)
+                        try {
+                            const url = new URL(legendURL)
+                            const formatParam = url.searchParams.get('FORMAT') || url.searchParams.get('format')
+
+                            if (formatParam) {
+                                const imageMimeTypes = [
+                                    'image/png', 'image/jpeg', 'image/jpg', 'image/gif',
+                                    'image/svg+xml', 'image/webp', 'image/tiff',
+                                    'image/bmp', 'image/ico', 'image/avif'
+                                ]
+
+                                const decodedFormat = decodeURIComponent(formatParam).toLowerCase()
+                                if (imageMimeTypes.includes(decodedFormat)) {
+                                    isImageUrl = true
+                                }
+                            }
+                        } catch (e) {
+                            // URL parsing failed, treat as non-image
+                            console.warn('Failed to parse legend URL:', legendURL)
+                        }
+                    }
+
+                    if (isImageUrl) {
+                        // Handle image legend directly
+                        drawLegends(
+                            LegendTool.tools,
+                            legendURL, // Pass the URL string directly
+                            l,
+                            L_.layers.data[l].display_name,
+                            L_.layers.opacity[l]
+                        )
+                        continue; // Skip the CSV processing below
+                    }
+                }
+
                 if (L_.layers.data[l]?._legend != undefined) {
                     drawLegends(
                         LegendTool.tools,
@@ -216,6 +266,51 @@ function drawLegends(tools, _legend, layerUUID, display_name, opacity) {
 
     let lastContinues = []
     let lastShape = ''
+
+    // Check if _legend is an image URL (string)
+    if (typeof _legend === 'string') {
+        // Render image directly
+        const imageContainer = c
+            .append('div')
+            .attr('class', 'legend-image-container')
+            .style('display', 'flex')
+            .style('justify-content', 'center')
+            .style('margin', '4px')
+            .style('padding', '4px')
+            .style('overflow-x', 'hidden')
+        imageContainer
+            .append('img')
+            .attr('src', _legend.startsWith('http') ? _legend : L_.missionPath + _legend)
+            .attr('alt', `Legend for ${display_name}`)
+            .style('max-width', '300px')
+            .style('max-height', '220px')
+            .style('height', 'auto')
+            .style('background-color', 'white')
+            .style('border', '1px solid var(--color-i)')
+            .style('border-radius', '3px')
+            .style('opacity', opacity)
+            .on('load', function() {
+                // Set container max-width to image width (capped at 300px)
+                const maxImageWidth = Math.min(this.naturalWidth, 300)
+                imageContainer
+                    .style('max-width', maxImageWidth + 'px')
+                    .style('width', 'fit-content')
+            })
+            .on('error', function() {
+                // Handle image load error
+                d3.select(this.parentNode)
+                    .append('div')
+                    .style('color', '#ff6b6b')
+                    .style('padding', '8px')
+                    .style('text-align', 'center')
+                    .style('font-size', '12px')
+                    .text('Failed to load legend.')
+                d3.select(this).remove()
+            })
+        
+        return // Exit early since we've rendered the image
+    }
+
     for (let d in _legend) {
         var shape = _legend[d].shapeImage && _legend[d].shapeImage.trim()
             ? _legend[d].shapeImage : _legend[d].shapeIcon && _legend[d].shapeIcon.trim()
@@ -234,7 +329,7 @@ function drawLegends(tools, _legend, layerUUID, display_name, opacity) {
             })
             lastShape = shape
         } else {
-            
+
             // finalize discreet and continuous
             if (lastContinues.length > 0) {
                 pushScale(lastContinues)
