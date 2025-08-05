@@ -7,6 +7,21 @@ const isValidString = (str) => {
   return str && typeof str === "string" && /^[a-zA-Z0-9_\-\.]+$/.test(str);
 };
 
+const logQueryWithParams = (query, params, req) => {
+  let queryWithParams = query;
+  Object.keys(params).forEach(key => {
+    const value = typeof params[key] === 'string' ? `'${params[key]}'` : params[key];
+    queryWithParams = queryWithParams.replace(new RegExp(`\\$${key}`, 'g'), value);
+  });
+  
+  // Remove line breaks and extra whitespace for easy copy/paste
+  const cleanQuery = queryWithParams
+    .replace(/\s+/g, ' ')  // Replace multiple whitespace with single space
+    .trim();               // Remove leading/trailing whitespace
+    
+  logger("info", `Executing SQL query: ${cleanQuery}`, req.originalUrl, req);
+};
+
 router.get("/coseismic", function (req, res, next) {
   coseismic(req, res, next, "get");
 });
@@ -200,19 +215,58 @@ function spatialdetections(req, res, next, type) {
 
   if (isISODateString(params.startdate) && isISODateString(params.enddate)
     && isValidString(params.mode) && isValidString(params.model)) {
+    // For performance reasons, we will only allow query for a single day range
+    const endDate = new Date(params.enddate);
+    const startday = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 0, 0, 0, 0).toISOString();
+    const endday = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59, 999).toISOString();
+    //const sqlQuery = "SELECT json_build_object('type', 'FeatureCollection', 'features', json_agg(json_build_object('type', 'Feature', 'geometry', ST_AsGeoJSON(geom)::json, 'properties', jsonb_strip_nulls(to_jsonb(detection_site) - 'geometry')))) FROM (WITH ranked_data AS (SELECT site.id, model.name, model.mode, detection_id, detection.label, eventtype, probability, startdate, enddate, ST_GeomFROMText('POINT(' || cast(x as text)|| ' ' || cast(y as text) || ')', 4326) as geom, ROW_NUMBER() OVER (PARTITION BY site.id ORDER BY enddate DESC) as rn FROM public.detection, site, model WHERE detection.site_id = site.id and probability is not null AND detection.model_id = model.id AND model.mode = $mode AND model.name = $name AND (startdate, enddate) OVERLAPS ($startdate, $enddate)) SELECT id, name, mode, detection_id, label, eventtype, probability, startdate, enddate, geom FROM ranked_data WHERE rn = 1) as detection_site;";
+    const sqlQuery = `
+      SELECT json_build_object(
+        'type', 'FeatureCollection', 
+        'features', COALESCE(json_agg(
+          json_build_object(
+            'type', 'Feature', 
+            'geometry', ST_AsGeoJSON(geom)::json, 
+            'properties', jsonb_strip_nulls(to_jsonb(detection_site) - 'geometry')
+          )
+        ) FILTER (WHERE geom IS NOT NULL), '[]'::json)
+      ) 
+      FROM (
+        SELECT DISTINCT ON (s.id) 
+          s.id, m.name, m.mode, d.detection_id, d.label, d.eventtype, 
+          d.probability, d.startdate, d.enddate,
+          s.geom
+        FROM public.detection d
+        INNER JOIN public.site s ON d.site_id = s.id
+        INNER JOIN public.model m ON d.model_id = m.id
+        WHERE d.probability IS NOT NULL
+          AND m.mode = $mode 
+          AND m.name = $name
+          AND d.startdate <= $enddate
+          AND d.enddate >= $startdate
+        ORDER BY s.id, d.enddate DESC
+      ) as detection_site;`;
+    const queryParams = {
+      startdate: startday,
+      enddate: endday,
+      mode: params.mode,
+      name: params.model,
+    };
+    
+    // Log the query with parameters substituted for debugging
+    logQueryWithParams(sqlQuery, queryParams, req);
+    
+    const startTime = Date.now();
     sequelize
       .query(
-        "SELECT json_build_object('type', 'FeatureCollection', 'features', json_agg(json_build_object('type', 'Feature', 'geometry', ST_AsGeoJSON(geom)::json, 'properties', jsonb_strip_nulls(to_jsonb(detection_site) - 'geometry')))) FROM (SELECT site.id, model.name, model.mode, detection_id, detection.label, eventtype, probability, startdate, enddate, ST_GeomFROMText('POINT(' || cast(x as text)|| ' ' || cast(y as text) || ')', 4326) as geom FROM public.detection, site, model WHERE detection.site_id = site.id and probability is not null AND detection.model_id = model.id AND model.mode = $mode AND model.name = $model AND (startdate, enddate) OVERLAPS ($startdate, $enddate)) as detection_site;",
+        sqlQuery,
         {
-          bind: {
-            startdate: params.startdate,
-            enddate: params.enddate,
-            mode: params.mode,
-            model: params.model,
-          },
+          bind: queryParams,
         }
       )
       .then(([detections]) => {
+        const queryTime = Date.now() - startTime;
+        logger("info", `Query completed in ${queryTime}ms`, req.originalUrl, req);
         res.send(detections[0]["json_build_object"]);
       })
       .catch((err) => {
