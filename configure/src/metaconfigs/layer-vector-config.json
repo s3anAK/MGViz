@@ -566,7 +566,7 @@
                 {
                   "field": "styleMatching",
                   "name": "Style Matching",
-                  "description": "If true, the style of the feature will be matched to this legend entry. If false, the style will be applied regardless of the feature's style.",
+                  "description": "If true, the feature will use this legend entry for its style. If false, the default style will be applied to the feature.",
                   "type": "checkbox",
                   "width": 2,
                   "defaultChecked": false

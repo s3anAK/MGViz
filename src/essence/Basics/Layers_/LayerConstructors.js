@@ -13,7 +13,7 @@ import { centroid } from '@turf/turf'
 
 let L = window.L
 
-// Helper function to interpolate between two colors
+// Helper function to interpolate between two colors using RGB
 function interpolateColor(color1, color2, factor) {
     if (!color1 || !color2) return color1 || color2
     
@@ -32,6 +32,40 @@ function interpolateColor(color1, color2, factor) {
     const b = Math.round(rgb1.b + (rgb2.b - rgb1.b) * factor)
     
     return `rgb(${r}, ${g}, ${b})`
+}
+
+// Enhanced function to interpolate between multiple colors using color stops
+function interpolateMultipleColors(colorStops, value, minValue, maxValue) {
+    if (!colorStops || colorStops.length === 0) return null
+    if (colorStops.length === 1) return colorStops[0].color
+    
+    // Normalize the value to 0-1 range
+    const normalizedValue = maxValue === minValue ? 0 : (value - minValue) / (maxValue - minValue)
+    
+    // Clamp the normalized value
+    const clampedValue = Math.max(0, Math.min(1, normalizedValue))
+    
+    // If we're at the extremes, return the boundary colors
+    if (clampedValue === 0) return colorStops[0].color
+    if (clampedValue === 1) return colorStops[colorStops.length - 1].color
+    
+    // Find the two color stops that bracket our value
+    for (let i = 0; i < colorStops.length - 1; i++) {
+        const currentStop = colorStops[i]
+        const nextStop = colorStops[i + 1]
+        
+        if (clampedValue >= currentStop.position && clampedValue <= nextStop.position) {
+            // Calculate the local factor between these two stops
+            const stopRange = nextStop.position - currentStop.position
+            const localFactor = stopRange === 0 ? 0 : (clampedValue - currentStop.position) / stopRange
+            
+            // Interpolate between the two colors
+            return interpolateColor(currentStop.color, nextStop.color, localFactor)
+        }
+    }
+    
+    // Fallback (shouldn't reach here)
+    return colorStops[colorStops.length - 1].color
 }
 
 // Helper function to convert hex color to RGB
@@ -214,45 +248,48 @@ export const constructVectorLayer = (
                             .sort((a, b) => a.numericValue - b.numericValue)
                         
                         if (numericEntries.length >= 2) {
-                            // Find the two entries that bracket the feature value
-                            let lowerEntry = null
-                            let upperEntry = null
+                            // Find min and max values for normalization
+                            const minValue = numericEntries[0].numericValue
+                            const maxValue = numericEntries[numericEntries.length - 1].numericValue
                             
-                            for (let i = 0; i < numericEntries.length - 1; i++) {
-                                if (featureValue >= numericEntries[i].numericValue && featureValue <= numericEntries[i + 1].numericValue) {
-                                    lowerEntry = numericEntries[i]
-                                    upperEntry = numericEntries[i + 1]
-                                    break
-                                }
-                            }
+                            // Create color stops for fill colors
+                            const fillColorStops = numericEntries
+                                .filter(entry => entry.color)
+                                .map(entry => ({
+                                    position: maxValue === minValue ? 0 : (entry.numericValue - minValue) / (maxValue - minValue),
+                                    color: entry.color
+                                }))
                             
-                            // Handle edge cases: value below minimum or above maximum
-                            if (!lowerEntry && featureValue < numericEntries[0].numericValue) {
-                                lowerEntry = upperEntry = numericEntries[0]
-                            } else if (!upperEntry && featureValue > numericEntries[numericEntries.length - 1].numericValue) {
-                                lowerEntry = upperEntry = numericEntries[numericEntries.length - 1]
-                            }
+                            // Create color stops for stroke colors
+                            const strokeColorStops = numericEntries
+                                .filter(entry => entry.strokecolor || entry.color)
+                                .map(entry => ({
+                                    position: maxValue === minValue ? 0 : (entry.numericValue - minValue) / (maxValue - minValue),
+                                    color: entry.strokecolor || entry.color
+                                }))
                             
-                            if (lowerEntry && upperEntry) {
-                                const range = upperEntry.numericValue - lowerEntry.numericValue
-                                const factor = range === 0 ? 0 : (featureValue - lowerEntry.numericValue) / range
-                                
-                                // Interpolate colors
-                                const interpolatedFillColor = interpolateColor(lowerEntry.color, upperEntry.color, factor)
-                                const interpolatedStrokeColor = interpolateColor(
-                                    lowerEntry.strokecolor || lowerEntry.color, 
-                                    upperEntry.strokecolor || upperEntry.color, 
-                                    factor
-                                )
+                            // Interpolate colors using the enhanced multi-color function
+                            if (fillColorStops.length >= 1) {
+                                const interpolatedFillColor = fillColorStops.length === 1 
+                                    ? fillColorStops[0].color
+                                    : interpolateMultipleColors(fillColorStops, featureValue, minValue, maxValue)
                                 
                                 if (interpolatedFillColor) {
                                     fiC = interpolatedFillColor
                                 }
+                            }
+                            
+                            if (strokeColorStops.length >= 1) {
+                                const interpolatedStrokeColor = strokeColorStops.length === 1
+                                    ? strokeColorStops[0].color
+                                    : interpolateMultipleColors(strokeColorStops, featureValue, minValue, maxValue)
+                                
                                 if (interpolatedStrokeColor) {
                                     col = interpolatedStrokeColor
                                 }
-                                break // Found styling, stop processing other properties
                             }
+                            
+                            break // Found styling, stop processing other properties
                         }
                     }
                 }
