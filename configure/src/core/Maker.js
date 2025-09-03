@@ -24,6 +24,7 @@ import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
 import IconButton from "@mui/material/IconButton";
 import Slider from "@mui/material/Slider";
+import FormHelperText from "@mui/material/FormHelperText";
 
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
@@ -39,6 +40,7 @@ import {
   getLayerByUUID,
   isUrlAbsolute,
 } from "./utils";
+import { isFieldRequired } from "./validators";
 
 import Map from "../components/Map/Map";
 import ColorButton from "../components/ColorButton/ColorButton";
@@ -237,6 +239,9 @@ const useStyles = makeStyles((theme) => ({
     marginBottom: "-13px !important",
     fontSize: "14px !important",
   },
+  noMarginHelperText: {
+    marginLeft: "0px !important",
+  },
 }));
 
 const getComponent = (
@@ -249,11 +254,30 @@ const getComponent = (
   inlineHelp,
   value,
   forceField,
-  dispatch
+  dispatch,
+  fieldDefaults
 ) => {
   const directConf =
     layer == null ? (tool == null ? configuration : tool) : layer;
   let inner;
+  let disabled = false;
+  if (com.disableSwitch) {
+    let switchVal = getIn(configuration, com.disableSwitch, null);
+    if (switchVal == null) {
+      // fall back to defaultChecked of the referenced switch if available
+      const def = fieldDefaults?.[com.disableSwitch];
+      if (def != null && typeof def.defaultChecked === "boolean") {
+        switchVal = def.defaultChecked;
+      } else {
+        switchVal = false;
+      }
+    }
+    disabled = !switchVal;
+  }
+  const isRequired = isFieldRequired(com, layer, configuration);
+  const fieldValue = value != null ? value : getIn(directConf, com.field, "");
+  const hasError = isRequired && (fieldValue === "" || fieldValue == null);
+  
   switch (com.type) {
     case "gap":
       return (
@@ -270,10 +294,17 @@ const getComponent = (
           label={com.name}
           variant="filled"
           size="small"
+          disabled={disabled}
+          required={isRequired}
+          error={hasError}
+          helperText={hasError ? "This field is required" : ""}
+          FormHelperTextProps={{
+            className: c.noMarginHelperText
+          }}
           inputProps={{
             autoComplete: "off",
           }}
-          value={value != null ? value : getIn(directConf, com.field, "")}
+          value={fieldValue}
           onChange={(e) => {
             updateConfiguration(forceField || com.field, e.target.value, layer);
           }}
@@ -309,10 +340,17 @@ const getComponent = (
           label={com.name}
           variant="filled"
           size="small"
+          disabled={disabled}
+          required={isRequired}
+          error={hasError}
+          helperText={hasError ? "This field is required" : ""}
+          FormHelperTextProps={{
+            className: c.noMarginHelperText
+          }}
           inputProps={{
             autoComplete: "off",
           }}
-          value={value != null ? value : getIn(directConf, com.field, "")}
+          value={fieldValue}
           onChange={(e) => {
             updateConfiguration(forceField || com.field, e.target.value, layer);
           }}
@@ -341,6 +379,7 @@ const getComponent = (
           className={c.button}
           variant="outlined"
           startIcon={<PrecisionManufacturingIcon />}
+          disabled={disabled}
           onClick={() => {
             if (com.action === "tile-populate-from-x") {
               tilePopulateFromX(
@@ -395,6 +434,75 @@ const getComponent = (
                   );
                 }
               );
+            } else if (com.action === "projection-populate-from-x") {
+              const inputPath = getIn(configuration, "projection.xmlpath", "");
+              if (inputPath == null || inputPath === "") {
+                dispatch(
+                  setSnackBarText({
+                    text: "Please provide a path or URL to tilemapresource.xml or an ArcGIS MapServer (?f=pjson).",
+                    severity: "error",
+                  })
+                );
+                return;
+              }
+
+              const missionPath = `Missions/${configuration.msv.mission}/`;
+              projectionPopulateFromX(inputPath, missionPath)
+                .then((vals) => {
+                  const { bounds, origin, reszoomlevel, resunitsperpixel } = vals;
+
+                  let conf = updateConfiguration(
+                    "projection.bounds",
+                    bounds || getIn(configuration, "projection.bounds", null),
+                    null,
+                    true
+                  );
+                  if (origin != null) {
+                    conf = updateConfiguration(
+                      "projection.origin",
+                      origin,
+                      null,
+                      true,
+                      conf
+                    );
+                  }
+                  if (reszoomlevel != null) {
+                    conf = updateConfiguration(
+                      "projection.reszoomlevel",
+                      reszoomlevel,
+                      null,
+                      true,
+                      conf
+                    );
+                  }
+                  if (resunitsperpixel != null) {
+                    conf = updateConfiguration(
+                      "projection.resunitsperpixel",
+                      resunitsperpixel,
+                      null,
+                      true,
+                      conf
+                    );
+                  }
+
+                  // Final dispatch
+                  updateConfiguration("projection.bounds", bounds, null, false, conf);
+
+                  dispatch(
+                    setSnackBarText({
+                      text: "Projection fields populated.",
+                      severity: "success",
+                    })
+                  );
+                })
+                .catch((err) => {
+                  dispatch(
+                    setSnackBarText({
+                      text: `Failed to populate projection fields: ${err?.message || err}`,
+                      severity: "error",
+                    })
+                  );
+                });
             }
           }}
         >
@@ -406,9 +514,10 @@ const getComponent = (
           {inlineHelp ? (
             <>
               {inner}
-              <Typography className={c.subtitle2}>
-                {com.description || ""}
-              </Typography>
+              <div
+                className={c.subtitle2}
+                dangerouslySetInnerHTML={{ __html: com.description || "" }}
+              ></div>
             </>
           ) : (
             <Tooltip title={com.description || ""} placement="top" arrow>
@@ -427,6 +536,7 @@ const getComponent = (
           label={com.name}
           variant="filled"
           size="small"
+          disabled={disabled}
           inputProps={{
             autoComplete: "off",
           }}
@@ -510,16 +620,25 @@ const getComponent = (
         </div>
       );
     case "number":
+      const numberValue = value != null ? value : getIn(directConf, com.field, "");
+      const numberHasError = isRequired && (numberValue === "" || numberValue == null || isNaN(numberValue));
       inner = (
         <TextField
           className={c.text}
           label={com.name}
           variant="filled"
           size="small"
+          disabled={disabled}
+          required={isRequired}
+          error={numberHasError}
+          helperText={numberHasError ? "This field is required" : ""}
+          FormHelperTextProps={{
+            className: c.noMarginHelperText
+          }}
           inputProps={{
             autoComplete: "off",
           }}
-          value={value != null ? value : getIn(directConf, com.field, "")}
+          value={numberValue}
           onChange={(e) => {
             let v = e.target.value;
             if (v != "") {
@@ -558,6 +677,7 @@ const getComponent = (
           <FormControlLabel
             control={
               <Checkbox
+                disabled={disabled}
                 checked={
                   value || getIn(directConf, com.field, com.defaultChecked)
                 }
@@ -603,6 +723,7 @@ const getComponent = (
             </Typography>
             <Grid item xs style={{ margin: "0px 10px" }}>
               <Slider
+                disabled={disabled}
                 value={
                   value != null
                     ? value
@@ -647,6 +768,7 @@ const getComponent = (
           <FormControlLabel
             control={
               <Switch
+                disabled={disabled}
                 checked={
                   value || getIn(directConf, com.field, com.defaultChecked)
                 }
@@ -684,6 +806,7 @@ const getComponent = (
         <FormControl className={c.dropdown} variant="filled" size="small">
           <InputLabel>{com.name}</InputLabel>
           <Select
+            disabled={disabled}
             value={value || getIn(directConf, com.field, com.options?.[0])}
             onChange={(e) => {
               updateConfiguration(
@@ -708,9 +831,10 @@ const getComponent = (
           {inlineHelp ? (
             <>
               {inner}
-              <Typography className={c.subtitle2}>
-                {com.description || ""}
-              </Typography>
+              <div
+                className={c.subtitle2}
+                dangerouslySetInnerHTML={{ __html: com.description || "" }}
+              ></div>
             </>
           ) : (
             <Tooltip title={com.description || ""} placement="top" arrow>
@@ -726,6 +850,7 @@ const getComponent = (
         <FormControl className={c.dropdown} variant="filled" size="small">
           <InputLabel>{com.name}</InputLabel>
           <Select
+            disabled={disabled}
             value={dropdown_value}
             onChange={(e) => {
               updateConfiguration(
@@ -867,6 +992,7 @@ const getComponent = (
         <ColorButton
           label={com.name}
           color={value || color}
+          disabled={disabled}
           onChange={(color) => {
             if (color) {
               let colorStr = color.hex;
@@ -1145,20 +1271,32 @@ const makeConfig = (
     }
     if (row.components) {
       made.push(
-        <Box
-          sx={{ flexGrow: 1 }}
-          className={clsx(c.row, { [c.rowBasic]: !shadowed })}
-          key={idx}
-        >
-          <Grid
-            container
-            spacing={4}
-            direction="row"
-            justifyContent="left"
-            alignItems="left"
-            style={row.forceHeight ? { height: row.forceHeight } : null}
-          >
-            {row.components.map((com, idx2) => {
+        (() => {
+          // Build a lookup of defaultChecked for switches to support disableSwitch fallbacks
+          const fieldDefaults = {};
+          row.components.forEach((com) => {
+            if (com.type === "switch" && typeof com.field === "string") {
+              fieldDefaults[com.field] = {
+                defaultChecked: com.defaultChecked,
+              };
+            }
+          });
+
+          return (
+            <Box
+              sx={{ flexGrow: 1 }}
+              className={clsx(c.row, { [c.rowBasic]: !shadowed })}
+              key={idx}
+            >
+              <Grid
+                container
+                spacing={4}
+                direction="row"
+                justifyContent="left"
+                alignItems="left"
+                style={row.forceHeight ? { height: row.forceHeight } : null}
+              >
+                {row.components.map((com, idx2) => {
               return (
                 <Grid
                   item
@@ -1178,13 +1316,16 @@ const makeConfig = (
                     inlineHelp,
                     null,
                     null,
-                    dispatch
+                    dispatch,
+                    fieldDefaults
                   )}
                 </Grid>
               );
-            })}
-          </Grid>
-        </Box>
+                })}
+              </Grid>
+            </Box>
+          );
+        })()
       );
     }
   });
@@ -1356,4 +1497,128 @@ function tilePopulateFromX(
         errorCallback(err);
       });
   }
+}
+
+function projectionPopulateFromX(pathOrUrl, missionPath) {
+  return new Promise((resolve, reject) => {
+    const isAbsolute = isUrlAbsolute(pathOrUrl);
+    const isXmlLike = /tilemapresource\.xml$/i.test(pathOrUrl) || /\.xml$/i.test(pathOrUrl);
+    const isEsri = /mapserver/i.test(pathOrUrl);
+
+    let fullUrl = pathOrUrl;
+    if (!isAbsolute && !isEsri) {
+      fullUrl = missionPath.replace("config.json", "") + fullUrl;
+      if (window.mmgisglobal.IS_DOCKER !== "true") {
+        fullUrl = `../../${fullUrl}`;
+      }
+    }
+
+    if (isXmlLike && !isEsri) {
+      fetch(fullUrl)
+        .then((response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.text();
+        })
+        .then((str) => new window.DOMParser().parseFromString(str, "text/xml"))
+        .then((xml) => {
+          try {
+            const bboxEl = xml.getElementsByTagName("BoundingBox")[0];
+            const bounds = bboxEl
+              ? [
+                  parseFloat(bboxEl.getAttribute("minx")),
+                  parseFloat(bboxEl.getAttribute("miny")),
+                  parseFloat(bboxEl.getAttribute("maxx")),
+                  parseFloat(bboxEl.getAttribute("maxy")),
+                ]
+              : null;
+
+            let origin = null;
+            const originEl = xml.getElementsByTagName("Origin")[0];
+            if (originEl) {
+              origin = [
+                parseFloat(originEl.getAttribute("x")),
+                parseFloat(originEl.getAttribute("y")),
+              ];
+            }
+
+            const tileSets = xml.getElementsByTagName("TileSet");
+            let reszoomlevel = null;
+            let resunitsperpixel = null;
+            if (tileSets && tileSets.length > 0) {
+              // Prefer order 0 if present; otherwise first
+              let chosen = tileSets[0];
+              for (let i = 0; i < tileSets.length; i++) {
+                const o = parseInt(tileSets[i].getAttribute("order"));
+                if (!isNaN(o) && o === 0) {
+                  chosen = tileSets[i];
+                  break;
+                }
+              }
+              const o = chosen.getAttribute("order");
+              const upp = chosen.getAttribute("units-per-pixel");
+              if (o != null) reszoomlevel = parseInt(o);
+              if (upp != null) resunitsperpixel = parseFloat(upp);
+            }
+
+            resolve({ bounds, origin, reszoomlevel, resunitsperpixel });
+          } catch (err) {
+            reject(err);
+          }
+        })
+        .catch((err) => reject(err));
+    } else {
+      // Treat as ArcGIS MapServer JSON
+      try {
+        let url = fullUrl;
+        if (!/\?/.test(url)) url += "?f=pjson";
+        else if (!/[?&]f=pjson/i.test(url)) url += "&f=pjson";
+
+        fetch(url)
+          .then((response) => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+          })
+          .then((json) => {
+            try {
+              const extent = json.fullExtent || json.initialExtent;
+              const bounds = extent
+                ? [
+                    parseFloat(extent.xmin),
+                    parseFloat(extent.ymin),
+                    parseFloat(extent.xmax),
+                    parseFloat(extent.ymax),
+                  ]
+                : null;
+
+              let origin = null;
+              if (json.tileInfo && json.tileInfo.origin) {
+                origin = [
+                  parseFloat(json.tileInfo.origin.x),
+                  parseFloat(json.tileInfo.origin.y),
+                ];
+              }
+
+              let reszoomlevel = null;
+              let resunitsperpixel = null;
+              const lods = json.tileInfo && json.tileInfo.lods;
+              if (lods && lods.length > 0) {
+                let chosen = lods.find((l) => l.level === 0);
+                if (!chosen) {
+                  chosen = lods.slice().sort((a, b) => a.level - b.level)[0];
+                }
+                reszoomlevel = chosen.level;
+                resunitsperpixel = chosen.resolution;
+              }
+
+              resolve({ bounds, origin, reszoomlevel, resunitsperpixel });
+            } catch (err) {
+              reject(err);
+            }
+          })
+          .catch((err) => reject(err));
+      } catch (err) {
+        reject(err);
+      }
+    }
+  });
 }

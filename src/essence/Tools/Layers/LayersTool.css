@@ -138,6 +138,13 @@
 #layersTool #searchLayers > div#clear.shown {
     opacity: 1;
 }
+#layersTool #searchLayers > div#restore{
+    position: absolute;
+    right: 60px;
+    background: var(--color-a1);
+    padding-top: 1px;
+    height: 34px;
+}
 #layersTool #searchLayers > div#expand {
     position: absolute;
     right: 30px;
@@ -368,7 +375,7 @@
 #layersTool .tileCogColormap #titlerCogColormapCSS {
     width: 254px;
     height: 28px;
-    transform: rotateZ(90deg) translateX(125px) translateY(-177px);
+    transform: rotateZ(-90deg) translateX(-125px) translateY(177px);
     border-left: 14px solid #222;
     border-right: 14px solid #222;
 }

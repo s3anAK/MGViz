@@ -110,29 +110,6 @@ jobs:
           echo "REGISTRY_TAGS_PR_NUMBER=$PR_NUMBER" >> $GITHUB_OUTPUT
           echo "SHA_SHORT=$SHA_SHORT" >> $GITHUB_OUTPUT
 
-  # Build and push AMD64 image on x64 runner
-  build-amd64:
-    needs: generate-tags
-    runs-on: ubuntu-latest  # x64 runner for native AMD64 builds
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login -u ${{ github.actor }} --password-stdin ghcr.io
-
-      - name: Docker buildx build and push (AMD64)
-        run: |
-          docker buildx build \
-            --platform linux/amd64 \
-            ${{ needs.generate-tags.outputs.registry-tags }} \
-            --push \
-            --no-cache \
-            .
-
   # Build and push ARM64 image on ARM64 runner
   build-arm64:
     needs: generate-tags
@@ -141,19 +118,44 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Login to GHCR
-        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login -u ${{ github.actor }} --password-stdin ghcr.io
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Docker buildx build and push (ARM64)
         run: |
           # Generate ARM64-specific tags by adding -arm64 suffix
           ARM64_TAGS="${{ needs.generate-tags.outputs.registry-tags }}-arm64"
-          docker buildx build \
-            --platform linux/arm64 \
+          docker build \
             ${ARM64_TAGS} \
+            --push \
+            --no-cache \
+            .
+
+  # Build and push AMD64 image on x64 runner
+  build-amd64:
+    needs: [generate-tags, build-arm64] # Build amd64 last so that it shows as the latest
+    runs-on: ubuntu-latest  # x64 runner for native AMD64 builds
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker buildx build and push (AMD64)
+        run: |
+          # Generate AMD64-specific tags by adding -amd64 suffix
+          AMD64_TAGS="${{ needs.generate-tags.outputs.registry-tags }}-amd64"
+          docker build \
+            ${AMD64_TAGS} \
             --push \
             --no-cache \
             .
