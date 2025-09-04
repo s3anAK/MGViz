@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS public.model
     id integer NOT NULL DEFAULT nextval('model_id_seq'::regclass),
     name text COLLATE pg_catalog."default" NOT NULL,
     mode text COLLATE pg_catalog."default" NOT NULL,
+    probability_threshold numeric,
     CONSTRAINT model_pkey PRIMARY KEY (id)
 )
 

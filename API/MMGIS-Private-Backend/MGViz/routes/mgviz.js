@@ -239,7 +239,7 @@ function spatialdetections(req, res, next, type) {
         FROM public.detection d
         INNER JOIN public.site s ON d.site_id = s.id
         INNER JOIN public.model m ON d.model_id = m.id
-        WHERE d.probability IS NOT NULL
+        WHERE d.probability >= m.probability_threshold
           AND m.mode = $mode 
           AND m.name = $name
           AND d.startdate <= $enddate
