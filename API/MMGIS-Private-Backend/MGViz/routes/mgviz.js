@@ -215,10 +215,10 @@ function spatialdetections(req, res, next, type) {
 
   if (isISODateString(params.startdate) && isISODateString(params.enddate)
     && isValidString(params.mode) && isValidString(params.model)) {
-    // For performance reasons, we will only allow query for a single day range
-    const endDate = new Date(params.enddate);
-    const startday = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 0, 0, 0, 0).toISOString();
-    const endday = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59, 999).toISOString();
+    // For performance reasons, we will only allow query for a 30-minute range
+    const selectedDate = new Date(params.enddate);
+    const startday = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), selectedDate.getHours(), selectedDate.getMinutes(), 0, 0).toISOString();
+    const endday = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), selectedDate.getHours(), selectedDate.getMinutes() + 30, 0, 0).toISOString();
     //const sqlQuery = "SELECT json_build_object('type', 'FeatureCollection', 'features', json_agg(json_build_object('type', 'Feature', 'geometry', ST_AsGeoJSON(geom)::json, 'properties', jsonb_strip_nulls(to_jsonb(detection_site) - 'geometry')))) FROM (WITH ranked_data AS (SELECT site.id, model.name, model.mode, detection_id, detection.label, eventtype, probability, startdate, enddate, ST_GeomFROMText('POINT(' || cast(x as text)|| ' ' || cast(y as text) || ')', 4326) as geom, ROW_NUMBER() OVER (PARTITION BY site.id ORDER BY enddate DESC) as rn FROM public.detection, site, model WHERE detection.site_id = site.id and probability is not null AND detection.model_id = model.id AND model.mode = $mode AND model.name = $name AND (startdate, enddate) OVERLAPS ($startdate, $enddate)) SELECT id, name, mode, detection_id, label, eventtype, probability, startdate, enddate, geom FROM ranked_data WHERE rn = 1) as detection_site;";
     const sqlQuery = `
       SELECT json_build_object(
