@@ -142,7 +142,8 @@ function detection(req, res, next, type) {
 	    "AND mode = $mode " +
 	    "AND name = $model " +
 	    "AND site_id = $site " +
-      "ORDER BY detection.id ASC",
+        "AND detection.probability >= model.probability_threshold " +
+        "ORDER BY detection.id ASC",
       {
         bind: {
           mode: params.mode,
