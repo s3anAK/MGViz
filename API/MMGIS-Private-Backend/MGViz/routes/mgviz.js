@@ -26,6 +26,10 @@ router.get("/coseismic", function (req, res, next) {
   coseismic(req, res, next, "get");
 });
 
+router.get("/weather", function (req, res, next) {
+  weather(req, res, next, "get");
+});
+
 router.get("/detection", function (req, res, next) {
   detection(req, res, next, "get");
 });
@@ -119,6 +123,48 @@ function coseismic(req, res, next, type) {
         });
       });
   }
+}
+
+function weather(req, res, next, type) {
+  //Have it accept either post or get
+  let params = null;
+  if (type === "get") params = req.query;
+  else if (type === "post") params = req.body;
+  else {
+    res.send({
+      status: "failure",
+      message: "Unexpected HTTP method: " + type,
+      body: {},
+    });
+    return;
+  }
+
+  //Get list of weather events
+  sequelize
+    .query(
+      "SELECT eventname, startdate, enddate" +
+        " " +
+        "FROM weather_event" +
+        " " +
+        "ORDER BY startdate DESC"
+    )
+    .then(([weather_event]) => {
+      res.send({ weather_event });
+    })
+    .catch((err) => {
+      logger(
+        "error",
+        "SQL error while acquiring weather events.",
+        req.originalUrl,
+        req,
+        err
+      );
+      res.send({
+        status: "failure",
+        message: "SQL error while acquiring weather events.",
+        body: {},
+      });
+    });
 }
 
 function detection(req, res, next, type) {
@@ -242,7 +288,6 @@ function spatialdetections(req, res, next, type) {
         INNER JOIN public.model m ON d.model_id = m.id
         WHERE d.probability >= m.probability_threshold
           AND m.mode = $mode 
-          AND m.name = $name
           AND d.startdate <= $enddate
           AND d.enddate >= $startdate
         ORDER BY s.id, d.enddate DESC

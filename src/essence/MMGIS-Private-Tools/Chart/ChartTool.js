@@ -198,6 +198,9 @@ var ChartTool = {
       '<div id="coseismicDiv"><br>Coseismic Events:<br>',
       '<select id="selectCoseismic" style="color:black; width:150px">',
       '</select><br></div>',
+      '<div id="weatherDiv" style="display:none"><br>Weather Events:<br>',
+      '<select id="selectWeather" style="color:black; width:150px;">',
+      '</select><br></div>',
       '<br>Site Code:<br>',
       '<input id="textSite" type="text" name="sitecode" style="color:#000000;width:60px;"/>',
       '<button id="buttonAdd" style="color:#000000;padding:2px;float:right;width:60px;font-size:11px;">Add</button><br>',
@@ -373,6 +376,9 @@ var ChartTool = {
     // load list of coseismics
     getCoseismics()
 
+    // load list of weather events
+    getWeatherEvents()
+
     // reselect any previous selections
     if (this.previousSites.length > 0) {
       $.each(this.previousSites, function (key, value) {
@@ -416,7 +422,8 @@ var ChartTool = {
       if (this.value === "tropospheric") {
         $('#geodeticDiv').hide()
         $('#troposphericDiv').show();
-        $('#coseismicDiv').hide()
+        $('#coseismicDiv').hide();
+        $('#weatherDiv').show();
         ChartTool.uom = 'm';
         $('#labelUnits').text(' ' + ChartTool.uom);
         $('input[name=checkSeparation]').prop('checked', false);
@@ -424,8 +431,9 @@ var ChartTool = {
         ChartTool.offset = 0;
       } else {
         $('#geodeticDiv').show();
-        $('#troposphericDiv').hide()
-        $('#coseismicDiv').show()
+        $('#troposphericDiv').hide();
+        $('#coseismicDiv').show();
+        $('#weatherDiv').hide();
         ChartTool.uom = 'mm';
         $('#labelUnits').text(' ' + ChartTool.uom);
         $('input[name=checkSeparation]').prop('checked', true);
@@ -463,6 +471,9 @@ var ChartTool = {
     });
     $('#selectCoseismic').on('change', function (e) {
       getCoseismicSites(this.value);
+    });
+    $('#selectWeather').on('change', function (e) {
+      getWeatherEvent(this.value);
     });
     $('#selectParameter').on('change', function (e) {
       ChartTool.param = this.value;
@@ -2576,6 +2587,45 @@ function getCoseismicSites(id) {
       console.error('Unable to retrieve list of coseismics sites.');
     }
   });
+}
+
+function getWeatherEvents() {
+  $.ajax({
+    type: 'GET',
+    url: 'api/mgviz/weather/',
+    dataType: 'json',
+    success: function (data) {
+      $('#selectWeather').empty()
+      $.each(data['weather_event'], function (key, value) {
+        if ('eventname' in value && 'startdate' in value && 'enddate' in value) { 
+          var eventString = value.eventname + ' - ' + value.startdate + ' - ' + value.enddate;
+          $('#selectWeather').append($('<option></option>')
+            .attr('value', eventString)
+            .text(eventString));
+        }
+      });
+      $('#selectWeather').val('')
+    },
+    error: function (jqXHR, textStatus, errorThrown) {
+      console.error('Unable to retrieve list of coseismics.');
+    }
+  });
+}
+
+function getWeatherEvent(eventValue) {
+  if (!eventValue) return;
+  
+  var parts = eventValue.split(' - ');
+  if (parts.length < 3) return;
+  
+  var eventname = parts[0];
+  var startdate = parts[1];
+  var enddate = parts[2];
+  
+  // Set MMGIS time to match the weather event dates
+  if (startdate && enddate && window.mmgisAPI && window.mmgisAPI.setTime) {
+    window.mmgisAPI.setTime(startdate, startdate, false);
+  }
 }
 
 function doy(dateObject) {
