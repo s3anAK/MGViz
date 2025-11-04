@@ -24,6 +24,7 @@ import Globe_ from '../../../../src/essence/Basics/Globe_/Globe_'
 import CursorInfo from '../../Ancillary/CursorInfo'
 import Formulae_ from '../../../../src/essence/Basics/Formulae_/Formulae_.js'
 import Modal from '../../Ancillary/Modal'
+import TimeControl from '../../Ancillary/TimeControl'
 
 import './ChartTool.css'
 
@@ -2622,10 +2623,28 @@ function getWeatherEvent(eventValue) {
   var startdate = parts[1];
   var enddate = parts[2];
   
+  // Change TimeUI to Range mode (index 0 = Range, index 1 = Point)
+  if (TimeControl && TimeControl.timeUI && typeof TimeControl.timeUI.changeMode === 'function') {
+    TimeControl.timeUI.changeMode(0); // 0 = Range mode
+  }
+  
+  // Turn on the "Historical Flash Flood Warnings" layer
+  // First get the layer UUID from the layer name
+  var layerUUID = L_.asLayerUUID('Historical Flash Flood Warnings');
+  if (layerUUID && window.mmgisAPI && window.mmgisAPI.toggleLayer) {
+    // Check if the layer is already on, only toggle if it's off
+    if (!L_.layers.on[layerUUID]) {
+      window.mmgisAPI.toggleLayer(layerUUID, true);
+    }
+  } else if (!layerUUID) {
+    console.warn('Warning: Unable to find layer named "Historical Flash Flood Warnings"');
+  }
+
   // Set MMGIS time to match the weather event dates
   if (startdate && enddate && window.mmgisAPI && window.mmgisAPI.setTime) {
-    window.mmgisAPI.setTime(startdate, startdate, false);
+    window.mmgisAPI.setTime(startdate, enddate, false);
   }
+
 }
 
 function doy(dateObject) {
