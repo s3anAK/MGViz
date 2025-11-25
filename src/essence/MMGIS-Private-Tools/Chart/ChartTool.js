@@ -2640,6 +2640,35 @@ function getWeatherEvent(eventValue) {
     console.warn('Warning: Unable to find layer named "Historical Flash Flood Warnings"');
   }
 
+  // Turn off all layers under the "Earthquakes" header
+  var earthquakesHeaderUUID = L_.asLayerUUID('Earthquakes');
+  if (earthquakesHeaderUUID && L_.layers.data[earthquakesHeaderUUID] && L_.layers.data[earthquakesHeaderUUID].sublayers) {
+    // Collect all non-header layers under the Earthquakes header
+    var layersToTurnOff = [];
+    function collectSublayers(sublayers) {
+      for (var i = 0; i < sublayers.length; i++) {
+        if (sublayers[i].type !== 'header') {
+          var subLayerUUID = L_.asLayerUUID(sublayers[i].name);
+          if (subLayerUUID && L_.layers.on[subLayerUUID]) {
+            layersToTurnOff.push(subLayerUUID);
+          }
+        }
+        // Recursively check nested sublayers
+        if (sublayers[i].sublayers && sublayers[i].sublayers.length > 0) {
+          collectSublayers(sublayers[i].sublayers);
+        }
+      }
+    }
+    collectSublayers(L_.layers.data[earthquakesHeaderUUID].sublayers);
+    
+    // Turn off all collected layers
+    for (var j = 0; j < layersToTurnOff.length; j++) {
+      if (window.mmgisAPI && window.mmgisAPI.toggleLayer) {
+        window.mmgisAPI.toggleLayer(layersToTurnOff[j], false);
+      }
+    }
+  }
+
   // Set MMGIS time to match the weather event dates
   if (startdate && enddate && window.mmgisAPI && window.mmgisAPI.setTime) {
     window.mmgisAPI.setTime(startdate, enddate, false);
