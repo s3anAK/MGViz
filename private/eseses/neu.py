@@ -301,8 +301,9 @@ def calculate_points(modelTerms, f, neu_component, ttype):
           if len(modelDeTrend) > 0:
               if (y - modelDeTrend[-1][0]) > 0.1:
                   for yy in floatRange(modelDeTrend[-1][0],y,1/365.25):
-                    modelDeTrend.append([yy,modeledCoord(yy,model,ttype,coord[c][0])])
-                    modelTrend.append([yy,modeledCoord(yy,model,ttype,coord[c][0])+velCumulative(yy,model)+modelTerms[c]['intercept']['interceptMm']])
+                    yy = round(yy, 4)
+                    modelDeTrend.append([yy,round(modeledCoord(yy,model,ttype,coord[c][0]), 2)])
+                    modelTrend.append([yy,round(modeledCoord(yy,model,ttype,coord[c][0])+velCumulative(yy,model)+modelTerms[c]['intercept']['interceptMm'], 2)])
                   #modelDeTrend.append([modelDeTrend[-1][0]+0.1, None])
   
           modelDeTrend.append([y,round(modelPt,2)])
