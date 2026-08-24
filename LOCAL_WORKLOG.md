@@ -34,16 +34,17 @@ git diff HEAD -- \
 - **`earthquake_vectors.py`**: direct `.neu` Filter/Clean Detrend parse (no per-site site.py); TODO to rename `*_vel` → `*_disp` later.
 - **`.cursorignore`**: allow Cursor to edit `MMGIS-Private-Tools` / Private-Backend (commented ignore lines).
 
-### In progress — Dedicated Earthquakes toolbar tool
+### Done — Dedicated Earthquakes toolbar tool
 - **Step 1** — `066db45` scaffold.
 - **Step 2** — `f47af2f` event/vector load path + site select without opening Chart.
 - **Step 3** — `ac70079` Chart label Saved → Selected (centered).
 - **Step 4** — `24ff39b` Chart coseismic UI removed; Velocities velocity-only.
-- **Step 5 (ready to review)** — Map earthquake click opens Earthquakes tool + `loadEvent` (not Chart).
-- Plan complete pending your approval of step 5.
+- **Step 5** — `79ced7c` Map earthquake click → Earthquakes tool.
+- **Legend / scale / vertical** — Vectors legend green `#2ea043`; on-map displacement scale (20/50/100 mm) after Earthquakes load; Direction H/V with orange vertical arrows (`arrows-disp-orange`).
 
-### Still planned (later / out of scope for Earthquakes tool)
-- On-map 50 mm displacement scale
+Still out of scope: `*_vel` → `*_disp` rename.
+
+### Still planned (later)
 - `*_vel` → `*_disp` rename
 
 ### Other modified files on branch (may be unrelated / earlier WIP)
