@@ -34,6 +34,7 @@ var markup = [
   var SearchTool = {
   height: 0,
   width: 600,
+  _skipOpenChart: false,
   lname: null,
   arrayToSearch: null,
   MMGISInterface: null,
@@ -83,8 +84,13 @@ var markup = [
     L_.unsubscribeOnLayerToggle('SearchTool')
     this.made = false
   },
-  search: function (forceX, forceSTS) {
-    doWithSearch('both', forceX, forceSTS, false);
+  search: function (forceX, forceSTS, options) {
+    SearchTool._skipOpenChart = !!(options && options.skipOpenChart);
+    try {
+      doWithSearch('both', forceX, forceSTS, false);
+    } finally {
+      SearchTool._skipOpenChart = false;
+    }
   },
   remove: function (forceX, forceSTS) {
     doWithSearch('remove', forceX, forceSTS, false);
@@ -483,16 +489,18 @@ function doWithSearch( doX, forceX, forceSTS, isURLSearch ) {
       selectLayers[0].bringToFront();
       Map_.activeLayer = selectLayers[0];
       // Description.updatePoint( Map_.activeLayer );
-      if (ToolController_.activeToolName != 'ChartTool') {
-        var prevActive = $( '#toolcontroller_incdiv .active' );
-        prevActive.removeClass( 'active' ).css( { 'color': ToolController_.defaultColor, 'background': 'none' } );
-        prevActive.parent().css( { 'background': 'none' } );
-        var newActive = $( '#toolcontroller_incdiv #ChartTool' );
-        newActive.addClass( 'active' ).css( { 'color': ToolController_.activeColor } );
-        newActive.parent().css( { 'background': ToolController_.activeBG } );
-        ToolController_.makeTool( 'ChartTool' );
+      if (!SearchTool._skipOpenChart) {
+        if (ToolController_.activeToolName != 'ChartTool') {
+          var prevActive = $( '#toolcontroller_incdiv .active' );
+          prevActive.removeClass( 'active' ).css( { 'color': ToolController_.defaultColor, 'background': 'none' } );
+          prevActive.parent().css( { 'background': 'none' } );
+          var newActive = $( '#toolcontroller_incdiv #ChartTool' );
+          newActive.addClass( 'active' ).css( { 'color': ToolController_.activeColor } );
+          newActive.parent().css( { 'background': ToolController_.activeBG } );
+          ToolController_.makeTool( 'ChartTool' );
+        }
+        ToolController_.getTool( 'ChartTool' ).use( selectLayers[0].feature );
       }
-      ToolController_.getTool( 'ChartTool' ).use( selectLayers[0].feature );
       // if( !isURLSearch ) {
       //   QueryURL.writeSearchURL( x, SearchTool.lname );
       // }
@@ -503,6 +511,9 @@ function doWithSearch( doX, forceX, forceSTS, isURLSearch ) {
         selectLayers[i].setStyle({fillColor: 'magenta'});
         selectLayers[i].setRadius(9);
         selectLayers[i].bringToFront();
+        if (SearchTool._skipOpenChart) {
+          continue;
+        }
         if (ToolController_.activeToolName != 'ChartTool') {
           var prevActive = $( '#toolcontroller_incdiv .active' );
           prevActive.removeClass( 'active' ).css( { 'color': ToolController_.defaultColor, 'background': 'none' } );
