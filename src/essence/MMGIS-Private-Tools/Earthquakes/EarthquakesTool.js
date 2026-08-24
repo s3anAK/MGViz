@@ -250,6 +250,8 @@ function loadCoseismicEvents(selectId) {
       })
       if (selectId) {
         $('#selectEarthquakeEvent').val(selectId)
+      } else if (EarthquakesTool.selectedEventId) {
+        $('#selectEarthquakeEvent').val(EarthquakesTool.selectedEventId)
       } else {
         $('#selectEarthquakeEvent').val('')
       }

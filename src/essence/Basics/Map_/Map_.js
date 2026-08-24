@@ -1784,12 +1784,30 @@ function makeVectorTileLayer(layerObj) {
             L_.layers.layer[layerObj.name] = L.vectorGrid.slicer(geoJSON, vectorTileOptions)
             .on('click', function (e) {
                 if (e.layer.properties['location'] != null) {
-                    if (ToolController_.activeToolName != 'ChartTool') {
-                        ToolController_.makeTool( 'ChartTool' )
+                    var id = e.layer.properties.id
+                    if (ToolController_.activeToolName != 'EarthquakesTool') {
+                        var prevActive = $(
+                            '#toolcontroller_incdiv .active'
+                        )
+                        prevActive
+                            .removeClass('active')
+                            .css({
+                                color: ToolController_.defaultColor,
+                                background: 'none',
+                            })
+                        prevActive.parent().css({ background: 'none' })
+                        var newActive = $(
+                            '#toolcontroller_incdiv #EarthquakesTool'
+                        )
+                        newActive
+                            .addClass('active')
+                            .css({ color: ToolController_.activeColor })
+                        newActive.parent().css({
+                            background: ToolController_.activeBG,
+                        })
+                        ToolController_.makeTool('EarthquakesTool')
                     }
-                    var ct = ToolController_.getTool( 'ChartTool' )
-                    ct.getCoseismicSites(e.layer.properties.id)
-
+                    ToolController_.getTool('EarthquakesTool').loadEvent(id)
                 }
             })
             // Set all vector tile points on top with same z index so that they're all selectable

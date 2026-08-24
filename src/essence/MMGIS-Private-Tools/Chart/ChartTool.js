@@ -2450,10 +2450,6 @@ var ChartTool = {
     ChartTool.clickedLatLngs = []
     ChartTool.drawing.disable()
   },
-  getCoseismicSites: function (id) {
-    // Kept for map earthquake click until rewired to EarthquakesTool.
-    getCoseismicSites(id)
-  },
   setDate: function (date) {
     ChartTool.date = date;
     ChartTool.calendar.setDate(date);
@@ -2513,42 +2509,6 @@ function getTaclsModels(mode) {
     $('#modelDiv').hide();
     $('#SseDiv').hide();
   }
-}
-
-function getCoseismicSites(id) {
-  $.ajax({
-    type: 'GET',
-    url: 'api/mgviz/coseismic?id=' + id,
-    dataType: 'json',
-    success: function (data) {
-      var sites = []
-      $.each(data['sites'], function (key, value) {
-        sites.push(value.site_id)
-      });
-      if (sites.length > 0) {
-        $('#siteSelect').empty();
-        L_.resetLayerFills();
-        var ct = ToolController_.getTool( 'ChartTool' )
-        ct.site = '';
-        ct.sites = [];
-        ct.siteOptionsList = [];
-        ct.stackOn = false;
-        ToolController_.getTool('SearchTool').search(sites, 'Sites');
-
-        // Temporary: map click still loads Vectors via Chart until step 5 rewires to Earthquakes.
-        var vname = L_.layers.nameToUUID['Vectors'][0]
-        var vectorsUrl = L_.layers.data[vname].url.substring(0, L_.layers.data[vname].url.lastIndexOf('earthquake_vectors'))
-        L_.layers.data[vname].url = vectorsUrl + 'earthquake_vectors/' + id + '/comb/clean/detrend'
-        Map_.refreshLayer( L_.layers.data[vname])
-
-      } else {
-        alert('No sites were found with the coseismic event.');
-      }
-    },
-    error: function (jqXHR, textStatus, errorThrown) {
-      console.error('Unable to retrieve list of coseismics sites.');
-    }
-  });
 }
 
 function getWeatherEvents() {
