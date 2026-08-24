@@ -37,8 +37,9 @@ git diff HEAD -- \
 ### In progress — Dedicated Earthquakes toolbar tool
 - **Step 1** — `066db45` scaffold.
 - **Step 2** — `f47af2f` event/vector load path + site select without opening Chart.
-- **Step 3 (ready to review)** — Chart label `Saved` → `Selected` (keep Load Saved Sites).
-- Next: slim Chart/Velocities; rewire map earthquake click.
+- **Step 3** — `ac70079` Chart label Saved → Selected (centered).
+- **Step 4 (ready to review)** — Chart coseismic dropdown removed; Chart Clear no longer clears Vectors; Velocities back to velocity-only (no Displacements tab).
+- Next: rewire map earthquake click to EarthquakesTool.
 
 ### Still planned (later / out of scope for Earthquakes tool)
 - On-map 50 mm displacement scale
