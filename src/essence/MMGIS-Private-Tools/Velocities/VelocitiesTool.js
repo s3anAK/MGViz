@@ -59,7 +59,7 @@ var VelocitiesTool = {
 
     var displacementOptions = [
         '<b>Displacement Options</b><br>',
-        '<span style="font-size:10px">Select a coseismic event<br>in Chart to load vectors.</span><br>',
+        '<span style="font-size:10px">Select a coseismic event<br>in Chart to load vectors.<br>Arrows are orange (velocities are purple).</span><br>',
         '<br>Display:<br>',
         '<select id="selectDisplacementDisplay" style="color:black">',
             '<option value="all">All</option>',
