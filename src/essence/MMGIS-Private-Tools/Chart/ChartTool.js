@@ -196,9 +196,6 @@ var ChartTool = {
       '</select></div>',
       '<div id="SseDiv"><input type="checkbox" name="checkSse" value="true" checked="checked"><span style="font-size:13px;"> Detected Events</span></div>',
       '<div id="sitesDiv" style="margin-top:4px;">',
-      '<div id="coseismicDiv"><br>Coseismic Events:<br>',
-      '<select id="selectCoseismic" style="color:black; width:150px">',
-      '</select><br></div>',
       '<div id="weatherDiv" style="display:none"><br>Weather Events:<br>',
       '<select id="selectWeather" style="color:black; width:150px;">',
       '</select><br></div>',
@@ -374,9 +371,6 @@ var ChartTool = {
       }
     });
 
-    // load list of coseismics
-    getCoseismics()
-
     // load list of weather events
     getWeatherEvents()
 
@@ -423,7 +417,6 @@ var ChartTool = {
       if (this.value === "tropospheric") {
         $('#geodeticDiv').hide()
         $('#troposphericDiv').show();
-        $('#coseismicDiv').hide();
         $('#weatherDiv').show();
         ChartTool.uom = 'm';
         $('#labelUnits').text(' ' + ChartTool.uom);
@@ -433,7 +426,6 @@ var ChartTool = {
       } else {
         $('#geodeticDiv').show();
         $('#troposphericDiv').hide();
-        $('#coseismicDiv').show();
         $('#weatherDiv').hide();
         ChartTool.uom = 'mm';
         $('#labelUnits').text(' ' + ChartTool.uom);
@@ -469,9 +461,6 @@ var ChartTool = {
       ChartTool.version = this.value;
       let siteOptions = new SiteOptions($('#siteSelect').val(), ChartTool.source, ChartTool.fil, ChartTool.type, ChartTool.mode, ChartTool.param, ChartTool.date);
       ToolController_.activeTool.loadChart(siteOptions, [ChartTool.north, ChartTool.east, ChartTool.up], ChartTool.coseismics, ChartTool.offset, ChartTool.stackOn, ChartTool.version);
-    });
-    $('#selectCoseismic').on('change', function (e) {
-      getCoseismicSites(this.value);
     });
     $('#selectWeather').on('change', function (e) {
       getWeatherEvent(this.value);
@@ -700,11 +689,6 @@ var ChartTool = {
       ToolController_.activeTool.stackOn = false;
       $('input[name=checkStack]').prop("checked", ToolController_.activeTool.stackOn);
       L_.resetLayerFills();
-      // Clear earthquake vectors
-      var vname = L_.layers.nameToUUID['Vectors'][0]
-      var vectorsUrl = L_.layers.data[vname].url.substring(0, L_.layers.data[vname].url.lastIndexOf('earthquake_vectors'))
-      L_.layers.data[vname].url = vectorsUrl + 'earthquake_vectors/0/0/0/0'
-      Map_.refreshLayer( L_.layers.data[vname])
     });
     $('#showCharts').click(function () {
       if ($('#contentDiv').is(":hidden")) {
@@ -2467,7 +2451,7 @@ var ChartTool = {
     ChartTool.drawing.disable()
   },
   getCoseismicSites: function (id) {
-    $('#selectCoseismic').val(id)
+    // Kept for map earthquake click until rewired to EarthquakesTool.
     getCoseismicSites(id)
   },
   setDate: function (date) {
@@ -2531,29 +2515,6 @@ function getTaclsModels(mode) {
   }
 }
 
-function getCoseismics() {
-  $.ajax({
-    type: 'GET',
-    url: 'api/mgviz/coseismic/',
-    dataType: 'json',
-    success: function (data) {
-      $('#selectCoseismic').empty()
-      $.each(data['coseismics'], function (key, value) {
-        if ('id' in value && 'time_utc' in value) { 
-          var formattedTime = value.time_utc
-          $('#selectCoseismic').append($('<option></option>')
-            .attr('value', value.id)
-            .text(formattedTime));
-        }
-      });
-      $('#selectCoseismic').val('')
-    },
-    error: function (jqXHR, textStatus, errorThrown) {
-      console.error('Unable to retrieve list of coseismics.');
-    }
-  });
-}
-
 function getCoseismicSites(id) {
   $.ajax({
     type: 'GET',
@@ -2574,10 +2535,10 @@ function getCoseismicSites(id) {
         ct.stackOn = false;
         ToolController_.getTool('SearchTool').search(sites, 'Sites');
 
-        // load earthquake vectors
+        // Temporary: map click still loads Vectors via Chart until step 5 rewires to Earthquakes.
         var vname = L_.layers.nameToUUID['Vectors'][0]
         var vectorsUrl = L_.layers.data[vname].url.substring(0, L_.layers.data[vname].url.lastIndexOf('earthquake_vectors'))
-        L_.layers.data[vname].url = vectorsUrl + 'earthquake_vectors/' + id + '/' + ct.source + '/' + ct.fil + '/' + ct.type
+        L_.layers.data[vname].url = vectorsUrl + 'earthquake_vectors/' + id + '/comb/clean/detrend'
         Map_.refreshLayer( L_.layers.data[vname])
 
       } else {
