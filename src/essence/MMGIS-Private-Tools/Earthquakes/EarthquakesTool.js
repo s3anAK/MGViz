@@ -16,6 +16,7 @@ var EarthquakesTool = {
   toolsDiv: null,
   source: 'comb',
   selectedEventId: null,
+  direction: 'horizontal',
   displacementExaggeration: 1,
   displacementFilter: 'all',
   MMGISInterface: null,
@@ -25,8 +26,9 @@ var EarthquakesTool = {
 
     var panelHtml = [
       '<b>Earthquakes</b><br>',
-      '<span style="font-size:10px">Coseismic events and green<br>',
-      'displacement arrows on the map.</span><br>',
+      '<span style="font-size:10px">Coseismic events and displacement<br>',
+      'arrows on the map (green = horizontal,<br>',
+      'orange = vertical).</span><br>',
       '<br>Coseismic Events:<br>',
       '<select id="selectEarthquakeEvent" style="color:black; width:160px">',
       '</select><br>',
@@ -39,6 +41,11 @@ var EarthquakesTool = {
       '<span style="font-size:10px">Independent of Chart Source/<br>',
       'Filter/Type. Vectors always use<br>',
       'Clean Detrend offsets.</span><br>',
+      '<br>Direction:<br>',
+      '<select id="selectEarthquakeDirection" style="color:black">',
+      '<option value="horizontal">Horizontal</option>',
+      '<option value="vertical">Vertical</option>',
+      '</select><br>',
       '<br>Display:<br>',
       '<select id="selectEarthquakeDisplay" style="color:black">',
       '<option value="all">All</option>',
@@ -46,7 +53,7 @@ var EarthquakesTool = {
       '</select><br>',
       '<span style="font-size:10px">Show only displacements (mm)<br>',
       'greater than selected value<br>',
-      'in any horizontal direction.</span><br>',
+      'in the active direction.</span><br>',
       '<br>Exaggeration:<br>',
       '<select id="selectEarthquakeLength" style="color:black">',
       '<option value="1">1</option>',
@@ -73,11 +80,16 @@ var EarthquakesTool = {
       .html(panelHtml)
 
     $('#selectEarthquakeSource').val(this.source)
+    $('#selectEarthquakeDirection').val(this.direction)
     $('#selectEarthquakeDisplay').val(this.displacementFilter)
     $('#selectEarthquakeLength').val(this.displacementExaggeration)
 
     Map_.displacementExaggeration = this.displacementExaggeration
     Map_.displacementFilter = this.displacementFilter
+    Map_.displacementOptions = this.direction
+    if (typeof Map_.updateDisplacementScale === 'function') {
+      Map_.updateDisplacementScale()
+    }
 
     loadCoseismicEvents(this.selectedEventId)
 
@@ -94,6 +106,15 @@ var EarthquakesTool = {
       }
     })
 
+    $('#selectEarthquakeDirection').on('change', function () {
+      EarthquakesTool.direction = this.value
+      Map_.displacementOptions = this.value
+      refreshVectorsStyleOnly()
+      if (typeof Map_.updateDisplacementScale === 'function') {
+        Map_.updateDisplacementScale()
+      }
+    })
+
     $('#selectEarthquakeDisplay').on('change', function () {
       EarthquakesTool.displacementFilter = this.value
       Map_.displacementFilter = this.value
@@ -104,6 +125,9 @@ var EarthquakesTool = {
       EarthquakesTool.displacementExaggeration = this.value
       Map_.displacementExaggeration = this.value
       refreshVectorsStyleOnly()
+      if (typeof Map_.updateDisplacementScale === 'function') {
+        Map_.updateDisplacementScale()
+      }
     })
 
     $('#buttonEarthquakeClear').on('click', function () {
@@ -162,6 +186,10 @@ var EarthquakesTool = {
       L_.layers.data[vname].url = vectorsUrl + 'earthquake_vectors/0/0/0/0'
       Map_.refreshLayer(L_.layers.data[vname])
     }
+    Map_.displacementScaleActive = false
+    if (typeof Map_.updateDisplacementScale === 'function') {
+      Map_.updateDisplacementScale()
+    }
   },
 
   destroy: function () {
@@ -183,6 +211,9 @@ function ensureVectorsLayerOn() {
   if (vname && L_.layers.on[vname] == false) {
     L_.toggleLayer(L_.layers.data[vname])
   }
+  if (typeof Map_.updateDisplacementScale === 'function') {
+    Map_.updateDisplacementScale()
+  }
 }
 
 function refreshVectorsLayer(id, source) {
@@ -203,6 +234,10 @@ function refreshVectorsLayer(id, source) {
     '/' +
     VECTORS_TYPE
   Map_.refreshLayer(L_.layers.data[vname])
+  Map_.displacementScaleActive = true
+  if (typeof Map_.updateDisplacementScale === 'function') {
+    Map_.updateDisplacementScale()
+  }
 }
 
 function refreshVectorsStyleOnly() {
