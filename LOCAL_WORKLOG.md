@@ -35,8 +35,9 @@ git diff HEAD -- \
 - **`.cursorignore`**: allow Cursor to edit `MMGIS-Private-Tools` / Private-Backend (commented ignore lines).
 
 ### In progress — Dedicated Earthquakes toolbar tool
-- **Step 1 (scaffold)** — `Earthquakes/config.json` + `EarthquakesTool.js` stub panel. Restart `npm start`, enable **Earthquakes** in `/configure`.
-- Next: event dropdown, Vector source, Display/Exaggeration, site select + Vectors load; slim Chart/Velocities; rewire map click.
+- **Step 1 (done, committed `066db45`)** — scaffold `Earthquakes/` + enable in configure.
+- **Step 2 (ready to review)** — Earthquakes owns event list, Vector source (`clean`/`detrend`), Display/Exaggeration, Clear (vectors + selection), site magenta + `ChartTool.previousSites` without opening Chart (`SearchTool` `skipOpenChart`).
+- Next: slim Chart/Velocities; rewire map earthquake click; rename Saved→Selected.
 
 ### Still planned (later / out of scope for Earthquakes tool)
 - On-map 50 mm displacement scale
