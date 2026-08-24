@@ -1749,7 +1749,8 @@ function makeVectorTileLayer(layerObj) {
                             var smallIcon = new L.Icon({
                                 iconSize: hide ? 0 : [iconsize, iconsize],
                                 iconAnchor: [iconsize/2, iconsize/2],
-                                iconUrl: 'Missions/MGViz/Images/arrows/arrow-'+deg+'.png'
+                                // Orange arrows (arrows-disp) to distinguish from purple velocity arrows
+                                iconUrl: 'Missions/MGViz/Images/arrows-disp/arrow-'+deg+'.png'
                             });
                             return {
                                 icon: smallIcon
