@@ -47,6 +47,9 @@ let Map_ = {
     vectorExaggeration: 1,
     vectorFilter: null,
     vectorOptions: null,
+    // Coseismic displacement vectors (Vectors layer) — separate from Velocities
+    displacementExaggeration: 1,
+    displacementFilter: null,
     //Initialize a map based on a config file
     init: function (essenceFinal) {
         essenceFina = essenceFinal
@@ -1710,6 +1713,8 @@ function makeVectorTileLayer(layerObj) {
                 }
             break;
             case 'Vectors':
+                // TODO: coseismic props are mm displacements borrowed as n_vel/e_vel/u_vel;
+                // rename to n_disp/e_disp/u_disp (with earthquake_vectors.py + cache clear).
                 layerObj.style.vtLayer = {
                     "sliced": 
                         function(properties, zoom) {
@@ -1720,9 +1725,15 @@ function makeVectorTileLayer(layerObj) {
                             var e = parseFloat(properties.e_vel);
                             var u = parseFloat(properties.u_vel);
                             var hide = false
+                            // Display filter (client-side): hide small horizontal offsets
+                            if (Map_.displacementFilter == 'greater') {
+                                if ((Math.abs(n) >= 20 || Math.abs(e) >= 20) == false) {
+                                    hide = true
+                                }
+                            }
 
                             var mag = Math.sqrt((n*n) + (e*e));
-                            var magScale = 3 * Map_.vectorExaggeration;
+                            var magScale = 3 * Map_.displacementExaggeration;
                             var iconsize = (magScale * mag) + 30;
                             if (iconsize > 150) {
                                 iconsize = 150; // cap at 150
@@ -1878,10 +1889,44 @@ function makeVectorTileLayer(layerObj) {
                         )
                     }
                     else if (e.layer.properties['n_vel'] != null) {
-                        var values = 'N vel: ' + e.layer.properties.n_vel + ' mm/yr<br> E vel: ' + e.layer.properties.e_vel +
-                        ' mm/yr<br> U vel: ' + e.layer.properties.u_vel + ' mm/yr';
-                        CursorInfo.update( 'Site: ' + e.layer.properties.site + '<br>' +
-                                                    values, null, false, null, null, null, true);
+                        var values
+                        if (layerObj.display_name === 'Vectors') {
+                            // Coseismic displacements: horizontal mag + azimuth; U separate
+                            var nDisp = parseFloat(e.layer.properties.n_vel)
+                            var eDisp = parseFloat(e.layer.properties.e_vel)
+                            var uDisp = e.layer.properties.u_vel
+                            if (isNaN(nDisp) || isNaN(eDisp)) {
+                                values = 'No horizontal offset'
+                            } else {
+                                var mag = Math.sqrt(nDisp * nDisp + eDisp * eDisp)
+                                var az = Math.atan2(eDisp, nDisp) * (180 / Math.PI)
+                                if (az < 0) {
+                                    az = 360 + az
+                                }
+                                values =
+                                    'Magnitude: ' + mag.toFixed(2) + ' mm<br>' +
+                                    'Azimuth: ' + Math.round(az) + '°'
+                                if (uDisp !== '' && uDisp != null && !isNaN(parseFloat(uDisp))) {
+                                    values += '<br>U: ' + parseFloat(uDisp).toFixed(2) + ' mm'
+                                } else {
+                                    values += '<br>U: None'
+                                }
+                            }
+                        } else {
+                            values =
+                                'N vel: ' + e.layer.properties.n_vel + ' mm/yr<br> E vel: ' +
+                                e.layer.properties.e_vel + ' mm/yr<br> U vel: ' +
+                                e.layer.properties.u_vel + ' mm/yr'
+                        }
+                        CursorInfo.update(
+                            'Site: ' + e.layer.properties.site + '<br>' + values,
+                            null,
+                            false,
+                            null,
+                            null,
+                            null,
+                            true
+                        )
                     }
                     else if (vtKey != null) {
                         CursorInfo.update(
