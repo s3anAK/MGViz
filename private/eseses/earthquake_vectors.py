@@ -3,9 +3,14 @@ import re
 import requests
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 
 API_URL = 'http://localhost:8888/api'
+OFFSET_PATTERN = re.compile(
+    r"(-?\d+\.\d+)\s+\+/-\s+(-?\d+\.\d+)\s+mm\s+\((\d{4}-\d{2}-\d{2} \[\d{4}\.\d{4,5}\])\)"
+)
+MAX_WORKERS = 16
 
 if str(sys.argv[1]).isalnum():   # site
     coseismic_id = sys.argv[1]
@@ -19,113 +24,132 @@ if str(sys.argv[3]).isalnum():
 if str(sys.argv[4]).isalnum():
     ttype = sys.argv[4]
 
-sources = {'comb': 'Combination',
-           'jpl': 'JPL',
-           'sopac': 'SOPAC'}
-
+# Match site.py: Component Terms only come from Filter/Clean *Detrend.neu files.
+# Raw never contributes offsets there, so vectors stay empty for fil=raw.
 filters = {'flt': 'Filter',
-           'clean': 'Clean',
-           'raw': 'Raw'}
+           'clean': 'Clean'}
+
+vectors_json = f'Missions/MGViz/Layers/earthquake_vectors/{coseismic_id}/{source}/{fil}/{ttype}.json'
+
+
+def print_cache_and_exit(path):
+    with open(path, 'r') as out:
+        print(out.read())
+    sys.exit()
+
 
 # Use cached file if it exists and is less than one day old
-vectors_json = f'Missions/MGViz/Layers/earthquake_vectors/{coseismic_id}/{source}/{fil}/{ttype}.json'
 if os.path.exists(vectors_json):
     mtime = datetime.fromtimestamp(os.path.getmtime(vectors_json))
     diff = datetime.now() - mtime
     if diff.days == 0:
-        with open(vectors_json, 'r') as out:
-            print(out.read())
-        sys.exit()
+        print_cache_and_exit(vectors_json)
 
-sites_json = ''
+
+def parse_coseismic_offsets(neu_file, date_utc):
+    """Read .neu header only; return (east_mm, north_mm, up_mm) matching site.py rules."""
+    north_movement = ''
+    east_movement = ''
+    up_movement = ''
+    if not os.path.exists(neu_file):
+        return east_movement, north_movement, up_movement
+
+    date_utc_dt = datetime.strptime(date_utc, "%Y-%m-%d")
+    direction = None
+    with open(neu_file, 'r', errors='replace') as f:
+        for li in f:
+            if not li.startswith('#'):
+                break
+            if 'Reference' in li:
+                continue
+            if 'East' in li or 'e component' in li:
+                direction = 'East'
+            elif 'North' in li or 'n component' in li:
+                direction = 'North'
+            elif 'Up' in li or 'u component' in li:
+                direction = 'Up'
+            elif direction in ('North', 'East', 'Up') and 'offset' in li and 'coseismic' not in li:
+                # site.py: li[1] == '*' marks coseismic offset
+                if len(li) > 1 and li[1] == '*':
+                    match = OFFSET_PATTERN.search(li)
+                    if match:
+                        movement = float(match.group(1))
+                        date_str = match.group(3).split()[0]
+                        date_difference = abs(
+                            date_utc_dt - datetime.strptime(date_str, "%Y-%m-%d")
+                        )
+                        if date_difference <= timedelta(days=1):
+                            if direction == 'North':
+                                north_movement = movement
+                            elif direction == 'East':
+                                east_movement = movement
+                            elif direction == 'Up':
+                                up_movement = movement
+    return east_movement, north_movement, up_movement
+
+
+def site_feature(site):
+    site_id = site['site_id']
+    date_utc = site['time_utc'].split('T')[0]
+    east_movement = ''
+    north_movement = ''
+    up_movement = ''
+
+    # site.py only loads Filter/Clean Detrend files for Component Terms
+    if fil in filters:
+        neu_file = f"private/eseses/data/{source}/{site_id}{filters[fil]}Detrend.neu"
+        try:
+            east_movement, north_movement, up_movement = parse_coseismic_offsets(
+                neu_file, date_utc
+            )
+        except Exception:
+            # Keep empty vectors for this site; do not fail the whole request
+            east_movement = ''
+            north_movement = ''
+            up_movement = ''
+
+    return {
+        "type": "Feature",
+        "properties": {
+            "site": site_id,
+            "x": site['x'],
+            "y": site['y'],
+            # TODO: rename to e_disp/n_disp/u_disp (mm offsets, not velocities);
+            # keep *_vel for now so Map_.js Vectors styling can reuse the same keys.
+            "e_vel": east_movement,
+            "n_vel": north_movement,
+            "u_vel": up_movement,
+            "time_utc": site['time_utc']
+        },
+        "geometry": {
+            "type": "Point",
+            "coordinates": [site['x'], site['y']]
+        }
+    }
+
+
 url = API_URL + '/mgviz/coseismic?id=' + coseismic_id
 try:
-    response = requests.get(url)
-    response.raise_for_status()  # Raise an exception for HTTP errors
+    response = requests.get(url, timeout=30)
+    response.raise_for_status()
     sites_json = response.json()
 except requests.exceptions.RequestException as e:
+    # Prefer stale cache over an error string if a previous build exists
+    if os.path.exists(vectors_json):
+        print_cache_and_exit(vectors_json)
     print(f"Error retrieving sites JSON data: {e}")
     sys.exit()
 
-features = []
-for site in sites_json['sites']:
-    # print(site)
-    metadata_url = f"{API_URL}/eseses/site/{site['site_id']}/{source}/{fil}/{ttype}"
-    # print(metadata_url)
-    # print(site['time_utc'])
-    date_format = "%Y-%m-%d"
-    date_utc = site['time_utc'].split('T')[0]
+sites = sites_json.get('sites', [])
+with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+    features = list(executor.map(site_feature, sites))
 
-    try:
-        response = requests.get(metadata_url)
-        response.raise_for_status()  # Raise an exception for HTTP errors
-        metadata_json = response.json()
-    except requests.exceptions.RequestException as e:
-        print(f"Error retrieving metadata JSON data: {e}")
-        sys.exit()
-
-    north_movement = ''
-    east_movement = ''
-    for component_terms, value in metadata_json['Component Terms'].items():
-        c_source, c_fil = component_terms.split(' - ')
-        # ignore offsets that don't match input parameters
-        if c_source != sources[source] or c_fil != filters[fil]:
-            continue
-        for direction, coseismic in value.items():
-            if 'Offset (coseismic)' in coseismic:
-                # print('\n' + direction)
-                for offset in coseismic['Offset (coseismic)']:
-                    # Define the pattern for movement, error, and date
-                    pattern = r"(-?\d+\.\d+)\s+\+/-\s+(-?\d+\.\d+)\s+mm\s+\((\d{4}-\d{2}-\d{2} \[\d{4}\.\d{4,5}\])\)"
-                    # Use the re.search function to find the first occurrence of the pattern in the string
-                    match = re.search(pattern, offset)
-                    if match:
-                        movement = float(match.group(1))
-                        error = float(match.group(2))
-                        date_str = match.group(3).split()[0]
-
-                        # Get coseismic that matches within a day
-                        date_difference = abs(datetime.strptime(date_utc, "%Y-%m-%d") - datetime.strptime(date_str, "%Y-%m-%d"))
-                        # print(f"date_utc: {date_utc}")
-                        # print(f"date_str: {date_str}")
-
-                        if date_difference <= timedelta(days=1):
-                            # print(f"Movement: {movement}")
-                            # print(f"Error: {error} mm")
-                            # print(f"Date: {date_str}")
-                            if direction == 'North':
-                                north_movement = movement
-                                error_north = error
-                            if direction == 'East':
-                                east_movement = movement
-                                error_east = error
-    feature = {
-            "type": "Feature",
-            "properties": {
-                "site": site['site_id'],
-                "x": site['x'],
-                "y": site['y'],
-                "e_vel": east_movement,
-                "n_vel": north_movement,
-                "u_vel": "",
-                "time_utc": site['time_utc']
-            },
-            "geometry": {
-                "type": "Point",
-                "coordinates": [site['x'], site['y']]
-            }
-        }
-    features.append(feature)
-
-# Define the data as a dictionary
 data = {
     "type": "FeatureCollection",
     "name": "coseismic_vectors",
-    "features": []
+    "features": features
 }
-data['features'] = features
 
-# Convert the dictionary to a JSON object, save as a file, and print
 os.makedirs(os.path.dirname(vectors_json), exist_ok=True)
 with open(vectors_json, 'w') as json_file:
     json.dump(data, json_file, indent=4)
