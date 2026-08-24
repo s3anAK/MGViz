@@ -1,0 +1,10 @@
+{
+    "defaultIcon": "pulse",
+    "description": "Coseismic events and map displacement vectors.",
+    "descriptionFull": "",
+    "hasVars": false,
+    "name": "Earthquakes",
+    "paths": {
+        "EarthquakesTool": "essence/MMGIS-Private-Tools/Earthquakes/EarthquakesTool"
+    }
+}

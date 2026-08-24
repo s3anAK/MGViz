@@ -34,10 +34,13 @@ git diff HEAD -- \
 - **`earthquake_vectors.py`**: direct `.neu` Filter/Clean Detrend parse (no per-site site.py); TODO to rename `*_vel` → `*_disp` later.
 - **`.cursorignore`**: allow Cursor to edit `MMGIS-Private-Tools` / Private-Backend (commented ignore lines).
 
-### Still planned
-- **Step 3** — Displacements source dropdown + Chart source→Vectors sync
-- **Step 4** — On-map 50 mm displacement scale
-- **Step 5** — Rename tool label to Vectors
+### In progress — Dedicated Earthquakes toolbar tool
+- **Step 1 (scaffold)** — `Earthquakes/config.json` + `EarthquakesTool.js` stub panel. Restart `npm start`, enable **Earthquakes** in `/configure`.
+- Next: event dropdown, Vector source, Display/Exaggeration, site select + Vectors load; slim Chart/Velocities; rewire map click.
+
+### Still planned (later / out of scope for Earthquakes tool)
+- On-map 50 mm displacement scale
+- `*_vel` → `*_disp` rename
 
 ### Other modified files on branch (may be unrelated / earlier WIP)
 Check with `git status` / `git diff` before committing:
