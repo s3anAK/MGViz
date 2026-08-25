@@ -64,6 +64,10 @@ var EarthquakesTool = {
       'of arrows.</span><br>',
       '<br>',
       '<button id="buttonEarthquakeClear" style="color:black; width:160px; padding:3px;">Clear</button><br>',
+      '<div id="earthquakeScaleWrap" style="display:none; margin-top:14px; padding-top:10px; border-top:1px solid #555;">',
+      '<div id="earthquakeScaleTitle" style="font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:#ccc; margin-bottom:8px;">Displacement scale</div>',
+      '<div id="earthquakeScaleList" style="display:flex; flex-direction:column; gap:6px;"></div>',
+      '</div>',
     ].join('\n')
 
     var tools = d3.select('#toolPanel')
@@ -76,7 +80,8 @@ var EarthquakesTool = {
       .style('position', 'relative')
       .style('float', 'left')
       .style('padding', '20px')
-      .style('height', '50%')
+      .style('height', '100%')
+      .style('overflow', 'auto')
       .html(panelHtml)
 
     $('#selectEarthquakeSource').val(this.source)
@@ -87,9 +92,7 @@ var EarthquakesTool = {
     Map_.displacementExaggeration = this.displacementExaggeration
     Map_.displacementFilter = this.displacementFilter
     Map_.displacementOptions = this.direction
-    if (typeof Map_.updateDisplacementScale === 'function') {
-      Map_.updateDisplacementScale()
-    }
+    this.updateScale()
 
     loadCoseismicEvents(this.selectedEventId)
 
@@ -110,9 +113,7 @@ var EarthquakesTool = {
       EarthquakesTool.direction = this.value
       Map_.displacementOptions = this.value
       refreshVectorsStyleOnly()
-      if (typeof Map_.updateDisplacementScale === 'function') {
-        Map_.updateDisplacementScale()
-      }
+      EarthquakesTool.updateScale()
     })
 
     $('#selectEarthquakeDisplay').on('change', function () {
@@ -125,14 +126,96 @@ var EarthquakesTool = {
       EarthquakesTool.displacementExaggeration = this.value
       Map_.displacementExaggeration = this.value
       refreshVectorsStyleOnly()
-      if (typeof Map_.updateDisplacementScale === 'function') {
-        Map_.updateDisplacementScale()
-      }
+      EarthquakesTool.updateScale()
     })
 
     $('#buttonEarthquakeClear').on('click', function () {
       EarthquakesTool.clear()
     })
+  },
+
+  /** Render displacement scale inside this tool panel. */
+  updateScale: function () {
+    var wrap = document.getElementById('earthquakeScaleWrap')
+    var list = document.getElementById('earthquakeScaleList')
+    var title = document.getElementById('earthquakeScaleTitle')
+    if (!wrap || !list) return
+
+    var active = !!Map_.displacementScaleActive && !!this.selectedEventId
+    if (!active) {
+      wrap.style.display = 'none'
+      return
+    }
+
+    var vertical = Map_.displacementOptions == 'vertical'
+    if (title) {
+      title.textContent = vertical
+        ? 'Vertical scale'
+        : 'Horizontal scale'
+    }
+
+    var sizes = vertical
+      ? Map_.displacementScaleMmVertical || [5, 10, 20]
+      : Map_.displacementScaleMm || [20, 50, 100]
+
+    list.innerHTML = ''
+    var fracX = 0.49
+    var fracY = 0.38
+    var fracW = 0.51
+    var fracH = 0.24
+    var sizeFn =
+      typeof Map_.displacementArrowIconSize === 'function'
+        ? Map_.displacementArrowIconSize
+        : function (mm) {
+            return Math.min(150, Math.max(50, 3 * mm + 30))
+          }
+
+    sizes.forEach(function (mm) {
+      var row = document.createElement('div')
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;'
+
+      var clip = document.createElement('div')
+      clip.style.cssText = 'position:relative;overflow:hidden;flex:0 0 auto;'
+
+      var img = document.createElement('img')
+      img.alt = mm + ' mm'
+      img.style.cssText = 'position:absolute;display:block;'
+
+      if (vertical) {
+        var iconH = Math.max(12, Math.round(sizeFn(mm) * 0.4))
+        var iconW = Math.max(6, Math.round(iconH * (60 / 86)))
+        clip.style.width = iconW + 'px'
+        clip.style.height = iconH + 'px'
+        img.src = 'Missions/MGViz/Images/arrow-inc-orange-up.png'
+        img.style.left = '0'
+        img.style.top = '0'
+        img.style.width = iconW + 'px'
+        img.style.height = iconH + 'px'
+      } else {
+        var iconPx = sizeFn(mm)
+        var visW = Math.max(8, Math.round(iconPx * fracW))
+        var visH = Math.max(6, Math.round(iconPx * fracH))
+        clip.style.width = visW + 'px'
+        clip.style.height = visH + 'px'
+        img.src = 'Missions/MGViz/Images/arrows-disp/arrow-90.png'
+        img.style.width = iconPx + 'px'
+        img.style.height = iconPx + 'px'
+        img.style.left = Math.round(-iconPx * fracX) + 'px'
+        img.style.top = Math.round(-iconPx * fracY) + 'px'
+      }
+
+      var label = document.createElement('div')
+      label.style.cssText =
+        'font-size:12px;font-weight:bold;color:#fff;white-space:nowrap;'
+      label.textContent = mm + ' mm'
+
+      clip.appendChild(img)
+      row.appendChild(clip)
+      row.appendChild(label)
+      list.appendChild(row)
+    })
+
+    wrap.style.display = 'block'
   },
 
   /** Load coseismic sites + Vectors for an event id; stay on Earthquakes (no Chart open). */
@@ -185,11 +268,16 @@ var EarthquakesTool = {
       )
       L_.layers.data[vname].url = vectorsUrl + 'earthquake_vectors/0/0/0/0'
       Map_.refreshLayer(L_.layers.data[vname])
+      // Turn off like Velocities default so legend hides when not in use
+      if (L_.layers.on[vname] == true) {
+        L_.toggleLayer(L_.layers.data[vname])
+      }
     }
     Map_.displacementScaleActive = false
     if (typeof Map_.updateDisplacementScale === 'function') {
       Map_.updateDisplacementScale()
     }
+    this.updateScale()
   },
 
   destroy: function () {

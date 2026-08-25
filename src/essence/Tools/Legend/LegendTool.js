@@ -100,79 +100,98 @@ function interfaceWithMMWebGIS() {
 function refreshLegends() {
     $('#LegendTool').empty()
 
+    // Draw Earthquake Vectors after Sites in the legend only (layer tree order unchanged)
+    var deferredEarthquakeVectors = null
+
+    function drawLayerLegend(l, shift) {
+        if (L_.layers.data[l]?._legend === undefined
+                && ((['image', 'tile'].includes(L_.layers.data[l].type) && L_.layers.data[l].cogTransform)
+                || L_.layers.data[l].type === 'velocity')) {
+            const layersTool = ToolController_.getTool('LayersTool')
+            layersTool.populateCogScale(L_.layers.data[l].name)
+        }
+
+        const legendURL = L_.layers.data[l]?.legend
+        if (legendURL && typeof legendURL === 'string') {
+            let isImageUrl = false
+            const fileExtension = legendURL.toLowerCase().split('.').pop().split('?')[0]
+            const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'tiff', 'tif', 'bmp', 'ico', 'avif']
+
+            if (imageExtensions.includes(fileExtension)) {
+                isImageUrl = true
+            } else if (['csv'].includes(fileExtension)) {
+                isImageUrl = false
+            } else {
+                try {
+                    const url = new URL(legendURL)
+                    const formatParam = url.searchParams.get('FORMAT') || url.searchParams.get('format')
+                    if (formatParam) {
+                        const imageMimeTypes = [
+                            'image/png', 'image/jpeg', 'image/jpg', 'image/gif',
+                            'image/svg+xml', 'image/webp', 'image/tiff',
+                            'image/bmp', 'image/ico', 'image/avif'
+                        ]
+                        const decodedFormat = decodeURIComponent(formatParam).toLowerCase()
+                        if (imageMimeTypes.includes(decodedFormat)) {
+                            isImageUrl = true
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Failed to parse legend URL:', legendURL)
+                }
+            }
+
+            if (isImageUrl) {
+                drawLegends(
+                    LegendTool.tools,
+                    legendURL,
+                    l,
+                    L_.layers.data[l].display_name,
+                    L_.layers.opacity[l],
+                    shift
+                )
+                return
+            }
+        }
+
+        if (L_.layers.data[l]?._legend != undefined) {
+            drawLegends(
+                LegendTool.tools,
+                L_.layers.data[l]?._legend,
+                l,
+                L_.layers.data[l].display_name,
+                L_.layers.opacity[l],
+                shift
+            )
+        }
+    }
+
+    function isEarthquakeVectorsLayer(l) {
+        var dn = L_.layers.data[l] && L_.layers.data[l].display_name
+        return dn === 'Earthquake Vectors' || dn === 'Vectors'
+    }
+
     function _refreshLegends(node, parent, depth) {
         let shift = LegendTool.showHeadersInLegend === true ? depth : 0
         for (let i in node) {
             let l = node[i].name
             if (L_.layers.on[l] == true) {
                 if (L_.layers.data[l].type != 'header') {
-                    if (L_.layers.data[l]?._legend === undefined
-                            && ((['image', 'tile'].includes(L_.layers.data[l].type) && L_.layers.data[l].cogTransform)
-                            || L_.layers.data[l].type === 'velocity')) {
-                        const layersTool = ToolController_.getTool('LayersTool')
-                        layersTool.populateCogScale(L_.layers.data[l].name)
-                    }
-
-                    // Check if there's a legend URL that points to an image
-                    const legendURL = L_.layers.data[l]?.legend
-                    if (legendURL && typeof legendURL === 'string') {
-                        let isImageUrl = false
-
-                        // First check for file extensions
-                        const fileExtension = legendURL.toLowerCase().split('.').pop().split('?')[0] // Remove query params
-                        const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'tiff', 'tif', 'bmp', 'ico', 'avif']
-
-                        if (imageExtensions.includes(fileExtension)) {
-                            isImageUrl = true
-                        } else if (['csv'].includes(fileExtension)) {
-                            isImageUrl = false
-                        } else {
-                            // If no file extension and not a csv, check for image MIME types in URL parameters (e.g., WMS GetLegendGraphic)
-                            try {
-                                const url = new URL(legendURL)
-                                const formatParam = url.searchParams.get('FORMAT') || url.searchParams.get('format')
-
-                                if (formatParam) {
-                                    const imageMimeTypes = [
-                                        'image/png', 'image/jpeg', 'image/jpg', 'image/gif',
-                                        'image/svg+xml', 'image/webp', 'image/tiff',
-                                        'image/bmp', 'image/ico', 'image/avif'
-                                    ]
-
-                                    const decodedFormat = decodeURIComponent(formatParam).toLowerCase()
-                                    if (imageMimeTypes.includes(decodedFormat)) {
-                                        isImageUrl = true
-                                    }
-                                }
-                            } catch (e) {
-                                // URL parsing failed, treat as non-image
-                                console.warn('Failed to parse legend URL:', legendURL)
-                            }
-                        }
-
-                        if (isImageUrl) {
-                            // Handle image legend directly
-                            drawLegends(
-                                LegendTool.tools,
-                                legendURL, // Pass the URL string directly
-                                l,
-                                L_.layers.data[l].display_name,
-                                L_.layers.opacity[l],
-                                shift
+                    if (isEarthquakeVectorsLayer(l)) {
+                        deferredEarthquakeVectors = { l: l, shift: shift }
+                    } else {
+                        drawLayerLegend(l, shift)
+                        // After Sites, insert deferred Earthquake Vectors legend
+                        if (
+                            L_.layers.data[l].display_name === 'Sites' &&
+                            deferredEarthquakeVectors
+                        ) {
+                            drawLayerLegend(
+                                deferredEarthquakeVectors.l,
+                                deferredEarthquakeVectors.shift
                             )
-                            continue; // Skip the CSV processing below
+                            deferredEarthquakeVectors = null
                         }
-                    }
-
-                    if (L_.layers.data[l]?._legend != undefined) {
-                        drawLegends(
-                            LegendTool.tools,
-                            L_.layers.data[l]?._legend,
-                            l,
-                            L_.layers.data[l].display_name,
-                            L_.layers.opacity[l],
-                            shift
-                        )
                     }
                 } else if (LegendTool.showHeadersInLegend === true) {
                         const haveLegends = L_.layers.data[l].sublayers
@@ -203,6 +222,13 @@ function refreshLegends() {
     }
 
     _refreshLegends(L_.configData.layers, {}, 0)
+    // If Sites was off / missing, still show deferred Earthquake Vectors
+    if (deferredEarthquakeVectors) {
+        drawLayerLegend(
+            deferredEarthquakeVectors.l,
+            deferredEarthquakeVectors.shift
+        )
+    }
 }
 
 // The legends parameter should be an array of objects, where each object must contain
