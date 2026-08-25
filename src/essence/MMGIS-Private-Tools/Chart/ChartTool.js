@@ -126,6 +126,7 @@ var ChartTool = {
   calendar: null,
   calendarDisableDates: null,
   calendarEnabledDates: null,
+  introDismissed: false,
   make: function () {
     tacls = L_.getToolVars('chart')['tacls'] ? L_.getToolVars('chart')['tacls'] : false;
     this.sse = tacls;
@@ -223,7 +224,12 @@ var ChartTool = {
       '<div style="height:95%;width:260px;overflow:auto;"><table id="siteInfo" colspan="2" class="site-table" style="width:240px;"><tbody><tr>',
       '</tr></tbody></table></div>'].join('\n');
 
-    var introHtml = ['<div style="text-align:center;font-size:24px;"><strong>Welcome to MGViz - the MMGIS GNSS Visualizer</strong></div><br></br>',
+    var introHtml = [
+      '<div style="position:relative;padding-top:4px;">',
+      '<button type="button" id="closeIntro" title="Close welcome" ',
+      'style="position:absolute;top:0;right:0;background:transparent;border:none;color:#ccc;',
+      'font-size:22px;line-height:1;cursor:pointer;padding:4px 8px;" aria-label="Close welcome">&times;</button>',
+      '<div style="text-align:center;font-size:24px;padding-right:28px;"><strong>Welcome to MGViz - the MMGIS GNSS Visualizer</strong></div><br></br>',
       '<div style="font-size:16px;">The map to the right displays GNSS sites and earthquakes. Select a site (blue circle) to display a time series plot of the site\'s data or use the ',
       '<strong>Load Saved Sites</strong> button near the bottom of the left panel to load a list of sites from an existing file.<br></br>',
       'Use the Chart Options on the left to change various options. Use <strong>Mode</strong> to change between <strong>Geodetic</strong> and <strong>Tropospheric</strong> modes.<br></br>',
@@ -240,14 +246,18 @@ var ChartTool = {
       'To export the list of saved sites to a file, provide a group name in the <strong>Default Group</strong> ',
       'text box and then click the <strong>Export Selected</strong> button.<br></br>',
       'Hitting the <strong>Clear Selected</strong> button will reset the Chart tool.<br></br>',
-      'Additional tools beyond charting may be found on the strip of icons on the far left of the screen.</div>'].join('\n')
+      'Additional tools beyond charting may be found on the strip of icons on the far left of the screen.</div>',
+      '</div>',
+    ].join('\n')
 
     var tools = d3.select('#toolPanel');
     tools.selectAll('*').remove();
     tools.style('width', '800px')
     this.toolsDiv = tools.append('div')
-      .style('height', '1200px')
+      .style('height', '100%')
+      .style('max-height', '100%')
       .style('width', '100%')
+      .style('overflow', 'hidden')
     this.infoDiv = this.toolsDiv.append('div')
       .attr('id', 'infoDiv')
       .style('width', '280px')
@@ -259,6 +269,10 @@ var ChartTool = {
       .style('border-left', '1px solid white')
       .style('border-right', '1px solid white')
       .style('height', '100%')
+      .style('max-height', '100%')
+      .style('overflow-y', 'auto')
+      .style('overflow-x', 'hidden')
+      .style('box-sizing', 'border-box')
       .html(siteInfo);
     this.optionsDiv = this.toolsDiv.append('div')
       .attr('id', 'optionsDiv')
@@ -268,10 +282,14 @@ var ChartTool = {
       .style('padding-top', '8px')
       .style('padding-left', '20px')
       .style('padding-right', '20px')
+      .style('padding-bottom', '20px')
       .style('border-right', '1px solid white')
       .style('height', '100%')
+      .style('max-height', '100%')
       .style('background-color', '#282828')
-      .style('overflow', 'auto')
+      .style('overflow-y', 'auto')
+      .style('overflow-x', 'hidden')
+      .style('box-sizing', 'border-box')
       .style('display', 'none')
       .html(chartOptions);
     this.contentDiv = this.toolsDiv.append('div')
@@ -374,6 +392,15 @@ var ChartTool = {
     // load list of weather events
     getWeatherEvents()
 
+    // Welcome panel HTML (visibility controlled by showIntroIfNeeded / close)
+    this.introDiv.html(introHtml)
+    $('#closeIntro').on('click', function (e) {
+      e.preventDefault()
+      ChartTool.introDismissed = true
+      $('#introDiv').hide()
+      ChartTool.collapseChartPane()
+    })
+
     // reselect any previous selections
     if (this.previousSites.length > 0) {
       $.each(this.previousSites, function (key, value) {
@@ -382,9 +409,9 @@ var ChartTool = {
           .attr('value', value)
           .text(value));
       });
+      $('#introDiv').hide()
     } else {
-      // display initial instructions
-      this.introDiv.html(introHtml)
+      ChartTool.showIntroIfNeeded()
     }
 
     // Reload sites on map and chart the last selected
@@ -786,7 +813,7 @@ var ChartTool = {
 
     // display intro HTML if nothing to chart, otherwise remove
     if (selectedSites.length == 0) {
-      $('#introDiv').show()
+      ChartTool.showIntroIfNeeded()
     } else {
       $('#introDiv').hide()
     }
@@ -845,7 +872,7 @@ var ChartTool = {
         $('#chart1').hide();
         $('#chart2').hide();
         $('#chart3').hide();
-        $('#introDiv').show()
+        ChartTool.showIntroIfNeeded()
         ToolController_.activeTool.sites = [];
         L_.resetLayerFills();
       }
@@ -1000,7 +1027,7 @@ var ChartTool = {
       $('#chart1').empty();
       $('#chart2').empty();
       $('#chart3').empty();
-      $('#introDiv').show()
+      ChartTool.showIntroIfNeeded()
       return;
     }
     if (sites.length > 1 && coseismics) { // don't show coseismics when selecting multiple sites
@@ -1017,7 +1044,8 @@ var ChartTool = {
     var loadMsg = '<div>Loading data for site: "' + site + '."</div>';
     var load = true;
     if ($('#contentDiv').is(":hidden")) {
-      load = false;
+      // Re-open charts pane when a site is selected after welcome was closed
+      ChartTool.expandChartPane()
     }
     if (($('#chart1').html() + $('#chart2').html() + $('#chart3').html()).includes('Loading')) {
       load = false;
@@ -2455,7 +2483,73 @@ var ChartTool = {
     ChartTool.calendar.setDate(date);
     let siteOptions = new SiteOptions($('#siteSelect').val(), ChartTool.source, ChartTool.fil, ChartTool.type, ChartTool.mode, ChartTool.param, ChartTool.date);
     ToolController_.activeTool.loadChart(siteOptions, [ChartTool.north, ChartTool.east,ChartTool.up], ChartTool.coseismics, ChartTool.offset, ChartTool.stackOn, ChartTool.version);
-  }
+  },
+
+  /** Show welcome panel only if not dismissed and no sites are selected. */
+  showIntroIfNeeded: function () {
+    var selected = $('#siteSelect').val()
+    var hasSites = selected && selected.length
+    if (ChartTool.introDismissed) {
+      $('#introDiv').hide()
+      // Keep empty charts pane closed after welcome was dismissed
+      if (!hasSites) {
+        ChartTool.collapseChartPane()
+      }
+      return
+    }
+    if (hasSites) {
+      $('#introDiv').hide()
+      return
+    }
+    $('#introDiv').show()
+  },
+
+  /** Collapse the welcome/charts pane; keep Chart Options open. */
+  collapseChartPane: function () {
+    $('#contentDiv').hide()
+    $('#optionsDiv').show()
+    $('#showCharts').html('Show Charts &#187;')
+    // Match #optionsDiv (190px border-box); avoid leftover black #toolPanel strip
+    var width = 190
+    $('#toolPanel').width(width + 'px')
+    $('#toolPanelDrag').css('left', width + 10 + 'px')
+    d3.select('#splitscreens').style('left', width + 40 + 'px')
+    d3.select('#splitscreens').style(
+      'width',
+      'calc(100% - ' + (width + 40) + 'px)'
+    )
+    $('#topBar').css({
+      'padding-left': '0px',
+      'margin-left': width + 40 + 'px',
+      width: 'calc(100% - ' + (width + 40) + 'px)',
+    })
+    window.dispatchEvent(new Event('resize'))
+  },
+
+  /** Expand options + charts pane (default Chart layout with site info hidden). */
+  expandChartPane: function () {
+    $('#optionsDiv').show()
+    $('#contentDiv').show()
+    $('#infoDiv').hide()
+    $('#showInfo').show()
+    $('#showCharts').html('&#171; Hide Charts')
+    var width = 800
+    $('#toolPanel').width(width + 'px')
+    $('#contentDiv').css('left', '188px')
+    $('#contentDiv').css('width', '620px')
+    $('#toolPanelDrag').css('left', width + 10 + 'px')
+    d3.select('#splitscreens').style('left', width + 40 + 'px')
+    d3.select('#splitscreens').style(
+      'width',
+      'calc(100% - ' + (width + 40) + 'px)'
+    )
+    $('#topBar').css({
+      'padding-left': '0px',
+      'margin-left': width + 40 + 'px',
+      width: 'calc(100% - ' + (width + 40) + 'px)',
+    })
+    window.dispatchEvent(new Event('resize'))
+  },
 };
 
 //
