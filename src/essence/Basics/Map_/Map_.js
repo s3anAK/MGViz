@@ -52,6 +52,7 @@ let Map_ = {
     displacementFilter: null,
     displacementOptions: 'horizontal', // 'horizontal' | 'vertical'
     displacementScaleMm: [20, 50, 100],
+    displacementScaleMmVertical: [5, 10, 20],
     // Only true after user loads an event via Earthquakes tool (not mission default URL)
     displacementScaleActive: false,
     updateDisplacementScale: updateDisplacementScale,
@@ -292,7 +293,6 @@ let Map_ = {
 
         //Build the toolbar
         buildToolBar()
-        initDisplacementScale()
 
         //Set the time for any time enabled layers
         TimeControl.updateLayersTime()
@@ -561,8 +561,12 @@ let Map_ = {
                 return true
             }
         }
-        // use old method for Velocities
-        if (layerObj.display_name == 'Velocities' || layerObj.display_name == 'Vectors') {
+        // use old method for Velocities / Earthquake Vectors (display_name may be "Vectors" or "Earthquake Vectors")
+        if (
+            layerObj.display_name == 'Velocities' ||
+            layerObj.display_name == 'Vectors' ||
+            layerObj.display_name == 'Earthquake Vectors'
+        ) {
             this.map.eachLayer( function (layer) {
                 if (layer.vtId == 'id') {
                     // Make sure vector tiles don't get lost in the back
@@ -1720,6 +1724,7 @@ function makeVectorTileLayer(layerObj) {
                 }
             break;
             case 'Vectors':
+            case 'Earthquake Vectors':
                 // TODO: coseismic props are mm displacements borrowed as n_vel/e_vel/u_vel;
                 // rename to n_disp/e_disp/u_disp (with earthquake_vectors.py + cache clear).
                 layerObj.style.vtLayer = {
@@ -1731,7 +1736,7 @@ function makeVectorTileLayer(layerObj) {
                             var hide = false
 
                             if (Map_.displacementOptions == 'vertical') {
-                                // Same green-style square arrows (orange), sized like horizontal
+                                // Orange arrow-inc icons; same px scaling as horizontal displacements
                                 if (properties.u_vel == '' || isNaN(u) || u === 0) {
                                     return;
                                 }
@@ -1741,13 +1746,18 @@ function makeVectorTileLayer(layerObj) {
                                     }
                                 }
                                 var iconsize = displacementArrowIconSize(Math.abs(u));
-                                var icon =
-                                    u > 0
-                                        ? 'Missions/MGViz/Images/arrows-disp-orange/arrow-0.png'
-                                        : 'Missions/MGViz/Images/arrows-disp-orange/arrow-180.png'
+                                // Preserve arrow-inc aspect (60x86); size by height like horizontal iconsize
+                                var iconW = Math.round(iconsize * (60 / 86));
+                                var iconH = iconsize;
+                                var icon = 'Missions/MGViz/Images/arrow-inc-orange-down.png';
+                                var yAnchor = 0;
+                                if (u > 0) {
+                                    icon = 'Missions/MGViz/Images/arrow-inc-orange-up.png';
+                                    yAnchor = iconH;
+                                }
                                 var smallIcon = new L.Icon({
-                                    iconSize: hide ? 0 : [iconsize, iconsize],
-                                    iconAnchor: [iconsize / 2, iconsize / 2],
+                                    iconSize: hide ? 0 : [iconW, iconH],
+                                    iconAnchor: [iconW / 2, yAnchor],
                                     iconUrl: icon
                                 });
                                 return {
@@ -1936,7 +1946,10 @@ function makeVectorTileLayer(layerObj) {
                     }
                     else if (e.layer.properties['n_vel'] != null) {
                         var values
-                        if (layerObj.display_name === 'Vectors') {
+                        if (
+                            layerObj.display_name === 'Vectors' ||
+                            layerObj.display_name === 'Earthquake Vectors'
+                        ) {
                             // Coseismic displacements: horizontal mag + azimuth; U separate
                             var nDisp = parseFloat(e.layer.properties.n_vel)
                             var eDisp = parseFloat(e.layer.properties.e_vel)
@@ -2276,8 +2289,6 @@ function allLayersLoaded() {
                     },
                 })
                 document.dispatchEvent(_event)
-                // Reposition displacement scale under the legend once it has laid out
-                setTimeout(updateDisplacementScale, 150)
             }
         }
         // Turn on search if displayOnStart is true
@@ -2331,197 +2342,16 @@ function displacementArrowIconSize(magMm) {
     return iconsize
 }
 
-function isVectorsLayerOn() {
-    var uuids = L_.layers.nameToUUID && L_.layers.nameToUUID['Vectors']
-    if (!uuids || !uuids[0]) return false
-    return L_.layers.on[uuids[0]] === true
-}
-
-/** True when user has loaded coseismic vectors via Earthquakes tool and Vectors is on. */
-function hasActiveEarthquakeVectors() {
-    if (!Map_.displacementScaleActive) return false
-    if (!isVectorsLayerOn()) return false
-    return true
-}
-
-function displacementScaleSizes() {
-    var mm = Map_.displacementScaleMm
-    if (Array.isArray(mm) && mm.length) return mm
-    return [20, 50, 100]
-}
-
-function initDisplacementScale() {
-    var mapEl = document.getElementById('map')
-    if (!mapEl) return
-    if (document.getElementById('displacementScale')) {
-        updateDisplacementScale()
-        return
-    }
-    var wrap = document.createElement('div')
-    wrap.id = 'displacementScale'
-    wrap.style.cssText = [
-        'display:none',
-        'position:absolute',
-        'top:80px',
-        'right:48px',
-        'left:auto',
-        'bottom:auto',
-        'z-index:1005',
-        'background:var(--color-k, #1a1a1a)',
-        'border:1px solid var(--color-i, #444)',
-        'border-radius:3px',
-        'color:var(--color-f, #dcdcdc)',
-        'pointer-events:none',
-        'font-family:lato-light, sans-serif',
-        'box-shadow:0 2px 8px rgba(0,0,0,0.35)',
-        'padding:8px 10px',
-    ].join(';')
-
-    var title = document.createElement('div')
-    title.id = 'displacementScaleTitle'
-    title.style.cssText =
-        'font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--color-l,#ccc);margin-bottom:6px;'
-    title.textContent = 'Displacement'
-
-    var list = document.createElement('div')
-    list.id = 'displacementScaleList'
-    list.style.cssText = 'display:flex;flex-direction:column;gap:6px;'
-
-    displacementScaleSizes().forEach(function (mm) {
-        var row = document.createElement('div')
-        row.className = 'displacementScaleRow'
-        row.dataset.mm = String(mm)
-        row.style.cssText = 'display:flex;align-items:center;gap:8px;'
-
-        var clip = document.createElement('div')
-        clip.className = 'displacementScaleClip'
-        clip.style.cssText =
-            'position:relative;overflow:hidden;flex:0 0 auto;'
-
-        var img = document.createElement('img')
-        img.className = 'displacementScaleArrow'
-        img.src = 'Missions/MGViz/Images/arrows-disp/arrow-90.png'
-        img.alt = mm + ' mm'
-        img.style.cssText = 'position:absolute;display:block;'
-
-        clip.appendChild(img)
-
-        var label = document.createElement('div')
-        label.className = 'displacementScaleLabel'
-        label.style.cssText =
-            'font-size:13px;font-weight:bold;color:#fff;white-space:nowrap;min-width:3.5em;'
-        label.textContent = mm + ' mm'
-
-        row.appendChild(clip)
-        row.appendChild(label)
-        list.appendChild(row)
-    })
-
-    wrap.appendChild(title)
-    wrap.appendChild(list)
-    mapEl.appendChild(wrap)
-
-    L_.subscribeOnLayerToggle('DisplacementScale', function () {
-        updateDisplacementScale()
-    })
-    window.addEventListener('resize', updateDisplacementScale)
-    updateDisplacementScale()
-}
-
-function positionDisplacementScale(wrap) {
-    wrap.style.left = 'auto'
-    wrap.style.bottom = 'auto'
-    wrap.style.right = '48px'
-
-    var mapEl = document.getElementById('map')
-    if (!mapEl) {
-        wrap.style.top = '80px'
-        return
-    }
-    var mapRect = mapEl.getBoundingClientRect()
-    var legendPanel = document.getElementById('toolContentSeparated_Legend')
-    if (
-        legendPanel &&
-        legendPanel.offsetParent !== null &&
-        legendPanel.getBoundingClientRect().height > 20
-    ) {
-        var legendRect = legendPanel.getBoundingClientRect()
-        var top = legendRect.bottom - mapRect.top + 8
-        if (top > 40 && top < mapRect.height - 80) {
-            wrap.style.top = top + 'px'
-            return
-        }
-    }
-    wrap.style.top = '80px'
-}
-
+/** Refresh scale UI in Earthquakes tool panel (if open); remove any old map overlay. */
 function updateDisplacementScale() {
-    var wrap = document.getElementById('displacementScale')
-    if (!wrap) return
-
-    if (!hasActiveEarthquakeVectors()) {
-        wrap.style.display = 'none'
-        return
+    var leftover = document.getElementById('displacementScale')
+    if (leftover && leftover.parentNode) {
+        leftover.parentNode.removeChild(leftover)
     }
-
-    var vertical = Map_.displacementOptions == 'vertical'
-    var title = document.getElementById('displacementScaleTitle')
-    if (title) {
-        title.textContent = vertical
-            ? 'Vertical displacement'
-            : 'Displacement'
+    var eq = ToolController_.getTool('EarthquakesTool')
+    if (eq && typeof eq.updateScale === 'function') {
+        eq.updateScale()
     }
-
-    // arrow-90.png opaque bbox within 100x100 canvas (measured: 49,38–99,61)
-    var fracX = 0.49
-    var fracY = 0.38
-    var fracW = 0.51
-    var fracH = 0.24
-    var rows = wrap.querySelectorAll('.displacementScaleRow')
-    for (var i = 0; i < rows.length; i++) {
-        var row = rows[i]
-        var mm = parseFloat(row.dataset.mm)
-        var clip = row.querySelector('.displacementScaleClip')
-        var img = row.querySelector('.displacementScaleArrow')
-        var label = row.querySelector('.displacementScaleLabel')
-        if (!clip || !img || isNaN(mm)) continue
-
-        if (vertical) {
-            // Solid orange arrows-disp-orange art (measured content bbox)
-            var iconPx = displacementArrowIconSize(mm)
-            var oFracX = 0.48
-            var oFracY = 0.32
-            var oFracW = 0.44
-            var oFracH = 0.36
-            var visW = Math.max(8, Math.round(iconPx * oFracW))
-            var visH = Math.max(6, Math.round(iconPx * oFracH))
-            clip.style.width = visW + 'px'
-            clip.style.height = visH + 'px'
-            clip.style.overflow = 'hidden'
-            img.src = 'Missions/MGViz/Images/arrows-disp-orange/arrow-90.png'
-            img.style.position = 'absolute'
-            img.style.width = iconPx + 'px'
-            img.style.height = iconPx + 'px'
-            img.style.left = Math.round(-iconPx * oFracX) + 'px'
-            img.style.top = Math.round(-iconPx * oFracY) + 'px'
-        } else {
-            var iconPx = displacementArrowIconSize(mm)
-            var visW = Math.max(8, Math.round(iconPx * fracW))
-            var visH = Math.max(6, Math.round(iconPx * fracH))
-            clip.style.width = visW + 'px'
-            clip.style.height = visH + 'px'
-            clip.style.overflow = 'hidden'
-            img.src = 'Missions/MGViz/Images/arrows-disp/arrow-90.png'
-            img.style.position = 'absolute'
-            img.style.width = iconPx + 'px'
-            img.style.height = iconPx + 'px'
-            img.style.left = Math.round(-iconPx * fracX) + 'px'
-            img.style.top = Math.round(-iconPx * fracY) + 'px'
-        }
-        if (label) label.textContent = mm + ' mm'
-    }
-    positionDisplacementScale(wrap)
-    wrap.style.display = 'block'
 }
 
 function clearOnMapClick(event) {
