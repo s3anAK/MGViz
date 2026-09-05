@@ -25,7 +25,31 @@
 !/Missions/spice-kernels-conf.example*json
 
 /build/*
+/backup/
 /data/*
+
+# Runtime caches / generated at repo root by velocity.py and psite.py
+/comb_ats.csv
+/comb_ats.json
+/jpl_ats.csv
+/jpl_ats.json
+/sopac_ats.csv
+/sopac_ats.json
+/out.csv
+/out.csv.bad
+/out.json
+/vel.csv
+/vel.json
+/nohup.out
+
+# Local ESESES data, logs, and scratch (not source)
+/private/eseses/Troposphere
+/private/eseses/log/
+/private/eseses/out.csv
+/private/eseses/timeseries.bak
+/private/eseses/timeseries_old.py
+/private/eseses/timeseries_new.py
+
 *__pycache__
 
 sessions

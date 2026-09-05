@@ -122,7 +122,7 @@ indivSiteProcMetadata = doc.findall('.//{http://sopac.ucsd.edu/ns/geodesy/2014}i
 sopacSiteID = indivSiteProcMetadata.attrib['sopacSiteID']
 m['SOPAC Site ID'] = sopacSiteID
 if getSubOptimal(site):
-  m['Timeseries QA'] = "<span style=\"color:#ff0000\">Caution</span> <a href=https://urldefense.us/v3/__https://docs.google.com/spreadsheets/d/e/2PACX-1vQ02siHNOTZ-yYFOQEghz-ZvF3X2s4AUf7zhkY2V57ggPlheYaF9SzRWfbdJJEnng/pub?gid=646720245&single=true&output=csv__;!!PvBDto6Hs4WbVuu7!YS-wBn4VDgP4prp-04KsYQDNTzoUZpxt3x-_eJlRZ48InC4RwPr-h2nDahk3XJfrrjjAfGHITA$>(info)</a>"
+  m['Timeseries QA'] = "<span style=\"color:#ff0000\">Caution</span> <a href=https://docs.google.com/spreadsheets/d/e/2PACX-1vQ02siHNOTZ-yYFOQEghz-ZvF3X2s4AUf7zhkY2V57ggPlheYaF9SzRWfbdJJEnng/pub?gid=646720245&single=true&output=csv>(info)</a>"
 m['XML File'] = 'api/eseses/sitexml/' + site + '.xml'
 
 neuMotionModelTerms = doc.findall('.//{http://sopac.ucsd.edu/ns/geodesy/2014}neuMotionModelTerms')[0]
