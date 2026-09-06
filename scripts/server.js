@@ -60,6 +60,9 @@ const middleware = require("./middleware").middleware;
 
 const isDevEnv = process.env.NODE_ENV === "development";
 
+// Interpreter for ESESES and profile/band Python helpers. Override per host in .env.
+const pythonBin = process.env.PYTHON_BIN || "python3";
+
 //Username to use when not logged in
 const guestUsername = "guest";
 
@@ -702,19 +705,19 @@ setups.getBackendSetups(function (setups) {
 
   //psite
   app.get('/api/eseses/psite', function(req, res) {
-    execFile('python3', ['private/eseses/psite.py'], {maxBuffer: 1024 * 1024},
+    execFile(pythonBin, ['private/eseses/psite.py'], {maxBuffer: 1024 * 1024},
     function(error, stdout, stderr) { res.send(stdout);});
   });
   app.get('/api/eseses/psite/:state', function(req, res) {
     const state = encodeURIComponent(req.params.state);
-    execFile('python3', ['private/eseses/psite.py', state], {maxBuffer: 1024 * 1024},
+    execFile(pythonBin, ['private/eseses/psite.py', state], {maxBuffer: 1024 * 1024},
     function(error, stdout, stderr) { res.send(stdout);});
   });
 
   //velocity
   app.get('/api/eseses/velocity/:source', function(req, res) {
     const source = encodeURIComponent(req.params.source);
-    execFile('python3', ['private/eseses/velocity.py', source], {maxBuffer: 1024 * 1024},
+    execFile(pythonBin, ['private/eseses/velocity.py', source], {maxBuffer: 1024 * 1024},
     function(error, stdout, stderr) { res.send(stdout); console.log(stderr);});
   });
 
@@ -724,7 +727,7 @@ setups.getBackendSetups(function (setups) {
     const source = encodeURIComponent(req.params.source);
     const fil = encodeURIComponent(req.params.fil);
     const type = encodeURIComponent(req.params.type);
-    execFile('python3', ['private/eseses/site.py', site, source, fil, type], {maxBuffer: 1024 * 1024},
+    execFile(pythonBin, ['private/eseses/site.py', site, source, fil, type], {maxBuffer: 1024 * 1024},
     function(error, stdout, stderr) { res.send(stdout); console.log(stderr);});
   });
 
@@ -742,7 +745,7 @@ setups.getBackendSetups(function (setups) {
     const fil = encodeURIComponent(req.params.fil);
     const type = encodeURIComponent(req.params.type);
     const neu = encodeURIComponent(req.params.neu);
-    execFile('python3', ['private/eseses/neu.py', site, source, fil, type, neu], {maxBuffer: 1024 * 1024},
+    execFile(pythonBin, ['private/eseses/neu.py', site, source, fil, type, neu], {maxBuffer: 1024 * 1024},
     function(error, stdout, stderr) { res.send(stdout); console.log(stderr);});
   });
 
@@ -751,7 +754,7 @@ setups.getBackendSetups(function (setups) {
       const site = encodeURIComponent(req.params.site);
       const param = encodeURIComponent(req.params.param);
       const date = encodeURIComponent(req.params.date);
-      execFile('python3', ['private/eseses/trop.py', site, param, date], {maxBuffer: 1024 * 1024},
+      execFile(pythonBin, ['private/eseses/trop.py', site, param, date], {maxBuffer: 1024 * 1024},
       function(error, stdout, stderr) { res.send(stdout); console.log(stderr);});
     });
 
@@ -762,7 +765,7 @@ setups.getBackendSetups(function (setups) {
       const source = encodeURIComponent(req.params.source);
       const fil = encodeURIComponent(req.params.fil);
       const type = encodeURIComponent(req.params.type);
-      execFile('python3', ['private/eseses/earthquake_vectors.py', coseismic_id, source, fil, type], {maxBuffer: 1024 * 1024},
+      execFile(pythonBin, ['private/eseses/earthquake_vectors.py', coseismic_id, source, fil, type], {maxBuffer: 1024 * 1024},
       function(error, stdout, stderr) { res.send(stdout); console.log(stderr);});
     });
 
@@ -775,12 +778,12 @@ setups.getBackendSetups(function (setups) {
     const type = encodeURIComponent(req.params.type);
     const version = encodeURIComponent(req.params.version);
     const neu = encodeURIComponent(req.params.neu);
-    execFile('python3', ['private/eseses/tacls.py', mode, site, source, fil, type, neu, version], {maxBuffer: 20 * 1024 * 1024},
+    execFile(pythonBin, ['private/eseses/tacls.py', mode, site, source, fil, type, neu, version], {maxBuffer: 20 * 1024 * 1024},
     function(error, stdout, stderr) { res.send(stdout); console.log(stderr);});
   });
   app.get('/api/eseses/tacls/:mode', function(req, res) {
     const mode = encodeURIComponent(req.params.mode);
-    execFile('python3', ['private/eseses/tacls.py', mode], {maxBuffer: 20 * 1024 * 1024},
+    execFile(pythonBin, ['private/eseses/tacls.py', mode], {maxBuffer: 20 * 1024 * 1024},
     function(error, stdout, stderr) { res.send(stdout);});
   });
   
@@ -801,7 +804,7 @@ setups.getBackendSetups(function (setups) {
       const axes = encodeURIComponent(req.body.axes);
 
       execFile(
-        "python3",
+        pythonBin,
         [
           "private/api/2ptsToProfile.py",
           path,
@@ -838,7 +841,7 @@ setups.getBackendSetups(function (setups) {
       const bands = encodeURIComponent(req.body.bands);
 
       execFile(
-        "python3",
+        pythonBin,
         ["private/api/BandsToProfile.py", path, x, y, xyorll, bands],
         function (error, stdout, stderr) {
           if (error) {
